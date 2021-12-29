@@ -1,19 +1,24 @@
 version: '3.9'
 
 services:
-  
   wechat:
     container_name: wechat_service
-    restart: always
-    volumes:
-      - .:/apps
-    
+    restart: always    
     ports:
       - "5001:5000"
     env_file:
       - ./prod.env
-
+    depends_on:
+      - nginx
     build:
       context: .
-    image: timvel/wechat_service
+    image: registry.cn-hangzhou.aliyuncs.com/timvel/wechat_service
     command: ['sanic',"-H0.0.0.0",'-p 5000','app.app']
+
+  nginx:
+    container_name: nginx
+    image: nginx
+    network_mode: "host"
+    volumes:
+      - ./nginx:/etc/nginx/:ro
+    restart: always

@@ -6,7 +6,7 @@ RUN set -x
 
 RUN pip install -r requirements.txt
 
-RUN mkdir /apps
+RUN mkdir -p /apps
 
 WORKDIR /apps
 
