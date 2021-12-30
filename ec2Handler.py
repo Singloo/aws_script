@@ -33,16 +33,17 @@ def get_ec2_instance(instance_id):
 
 def is_valid_cmd(msg, data=None):
     tokens = destruct_msg(msg)
-    if msg in ['state', 'status', 'start', 'stop'] and data is not None and data.get('instance_id') is not None:
+    if msg in ['state', 'status', 'start', 'stop'] and data != None and data.get('instance_id') != None:
+        logger.info('[reconstruct tokens with data]')
         tokens = ['ec2', data.get('instance_id'), tokens[0]]
     logger.info(f'[tokens] {tokens}')
     if len(tokens) != 3:
-        return False
+        return False, None
     flag = 0
     if tokens[0].lower() == 'ec2':
         flag += 1
         logger.info('[msg stage 1 pass]')
-    if tokens[1] is not None and re.fullmatch(r"^i-[a-z0-9]{17}$", tokens[1]) is not None:
+    if tokens[1] != None and re.fullmatch(r"^i-[a-z0-9]{17}$", tokens[1]) != None:
         flag += 1
         logger.info('[msg stage 2 pass]')
     if tokens[2] in ['start', 'state', 'stop', 'status']:
@@ -53,8 +54,8 @@ def is_valid_cmd(msg, data=None):
 
 def start_ec2(instance_id):
     ins = get_ec2_instance(instance_id)
-    if ins.state['Name'] == 'running':
-        logger.info('[Instance is running]')
+    if ins.state['Name'] != 'stopped':
+        logger.info(f'[Instance is {ins.state["Name"]}]')
         return False, f"Instance current state is {ins.state['Name']}"
     response = ins.start()
     logger.info('[Instance successfully started]')
@@ -92,8 +93,9 @@ def wait_for_ip(ins):
 
 def query_ec2_status(instance_id):
     ins = get_ec2_instance(instance_id)
-    addon = wait_for_ip(ins) if ins.state['Name'] != 'stopped' else {}
-    msg = '\n'.join(addon.values())
+    addon = wait_for_ip(ins) if ins.state['Name'] != 'stopped' else {
+        'state': 'stopped'}
+    msg = '\n \n'.join(addon.values())
     logger.info(f'[status got] {msg}')
     return True, msg
 

@@ -1,0 +1,5 @@
+region_name=your ec2 instance region
+aws_access_key_id=
+aws_secret_access_key=
+ss_str=your outline token
+ss_port=port
