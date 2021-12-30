@@ -6,9 +6,9 @@ just for personal use
 2. aws ec2 instance
 3. with outline service running on your instance
 
-accept 3 cammands  
+accepted cammands  
 `ec2 <ec2-instance-id> [start|stop|state]`  
-after pass instance id, server will cache it for 10 minutes, you can use cammand in short to control it.  
+after passing instance id, server side will cache it for 10 minutes, you can use cammand in short to control it.  
 like `start` `stop` `status`
 
 also you need to provide env variables.
