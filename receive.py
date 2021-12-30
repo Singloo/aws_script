@@ -1,6 +1,5 @@
 import xml.etree.ElementTree as ET
-
-
+from logger import logger
 def parse_xml(web_data):
     if len(web_data) == 0:
         return None
@@ -24,7 +23,8 @@ class Msg(object):
 class TextMsg(Msg):
     def __init__(self, xmlData):
         super().__init__(xmlData)
-        self.Content = xmlData.find('Content').text.encode("utf-8")
+        
+        self.Content = xmlData.find('Content').text
 
 
 class ImageMsg(Msg):
