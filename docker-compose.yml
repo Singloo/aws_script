@@ -1,5 +1,4 @@
 version: '3.9'
-
 services:
   wechat:
     container_name: wechat_service
@@ -8,13 +7,24 @@ services:
       - "5001:5000"
     env_file:
       - ./prod.env
+    networks:
+      - internal
     depends_on:
       - nginx
+      - redis
     build:
       context: .
     image: registry.cn-hangzhou.aliyuncs.com/timvel/wechat_service
     command: ['sanic',"-H0.0.0.0",'-p 5000','app.app']
 
+  redis:
+    container_name: redis
+    image: redis
+    restart: always
+    sysctls:
+      - net.core.somaxconn=1024
+    networks:
+      - internal
   nginx:
     container_name: nginx
     image: nginx
@@ -22,3 +32,5 @@ services:
     volumes:
       - ./nginx:/etc/nginx/:ro
     restart: always
+networks:
+  internal:

@@ -4,6 +4,7 @@ from logger import logger
 import os
 from botocore.exceptions import ClientError
 import time
+from redisConn import cache_userdata, get_userdata
 
 region_name = os.getenv('region_name')
 aws_access_key_id = os.getenv('aws_access_key_id')
@@ -11,6 +12,10 @@ aws_secret_access_key = os.getenv('aws_secret_access_key')
 
 ss_str = os.getenv('ss_str')
 ss_port = os.getenv('ss_port')
+
+
+def destruct_msg(msg):
+    return msg.split(' ')
 
 
 def get_ec2_instance(instance_id):
@@ -26,8 +31,10 @@ def get_ec2_instance(instance_id):
     return ins
 
 
-def is_valid_cmd(msg):
-    tokens = msg.split(' ')
+def is_valid_cmd(msg, data=None):
+    tokens = destruct_msg(msg)
+    if msg in ['state', 'status'] and data is not None and data.get('instance_id') is not None:
+        tokens = ['ec2', data.get('instance_id'), 'state']
     logger.info(f'tokens {tokens}')
     flag = 0
     if tokens[0].lower() == 'ec2':
@@ -42,13 +49,15 @@ def is_valid_cmd(msg):
     return flag == 3
 
 
-def start_ec2(instance_id):
+def start_ec2(instance_id, user_id):
     ins = get_ec2_instance(instance_id)
     if ins.state['Name'] == 'running':
         logger.info('Instance is running')
         return False, f"Instance current state is {ins.state['Name']}"
     response = ins.start()
     logger.info('Instance successfully started')
+    cache_userdata(user_id, {'instance_id': instance_id})
+    logger.info(f'Cache data saved {user_id}')
     return True, response['StartingInstances'][0]['CurrentState']['Name']
 
 
@@ -88,13 +97,13 @@ def query_ec2_status(instance_id):
     return True, msg
 
 
-def ec2_action_handler(msg):
-    tokens = msg.split(' ')
+def ec2_action_handler(msg, user_id):
+    tokens = destruct_msg(msg)
     cmd = tokens[2]
     instance_id = tokens[1]
     try:
         if cmd in ['start']:
-            success, resp = start_ec2(instance_id)
+            success, resp = start_ec2(instance_id, user_id)
         if cmd in ['stop']:
             success, resp = stop_ec2(instance_id)
         if cmd in ['state', 'status']:
