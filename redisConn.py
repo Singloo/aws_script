@@ -1,5 +1,7 @@
+from logger import logger
 from redis import Redis
 import json
+
 redis_conn = Redis(
     host='redis',
     port=6379,
@@ -13,6 +15,7 @@ def cache_userdata(user_id, data):
 
 def get_userdata(user_id):
     res = redis_conn.get(user_id)
-    if isinstance(res, str):
-        return json.loads(res)
-    return None
+    logger.info(f'[redis res] {user_id}:{res}')
+    if res is None:
+        return None
+    return json.loads(res)
