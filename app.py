@@ -1,4 +1,6 @@
 from sanic import Sanic
+import os
+import atexit
 from sanic.response import json, text
 from logger import logger
 import receive
@@ -6,11 +8,16 @@ import reply
 from verification import wechat_verification
 from ec2Handler import ec2_action_handler, is_valid_cmd
 from redisConn import get_userdata
+from .scheduler import schedule_to_shut_down_ec2, sched
+
+reserved_instance_id = os.getenv('reserved_instance_id')
+SCHEDULE_TO_STOP_EC2 = True
+
 app = Sanic('wechat_service')
 
 
 def message_handler(msg, user_id, data=None):
-    valid,tokens = is_valid_cmd(msg,data)
+    valid, tokens = is_valid_cmd(msg, data)
     if valid:
         success, resp = ec2_action_handler(tokens, user_id)
         return resp
@@ -41,3 +48,17 @@ async def main_get(request):
     if resp is None:
         return text('nah')
     return text(resp)
+
+
+@atexit.register
+def on_exit():
+    sched.shutdown()
+
+
+if __name__ == '__main__':
+    if SCHEDULE_TO_STOP_EC2:
+        sched.remove_all_jobs()
+        sched.add_job(schedule_to_shut_down_ec2, trigger='cron',
+                      args=(reserved_instance_id,), hour=22-8)
+        sched.start()
+        logger.info('[SCHEDULE] running')
