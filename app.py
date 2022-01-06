@@ -8,7 +8,7 @@ import reply
 from verification import wechat_verification
 from ec2Handler import ec2_action_handler, is_valid_cmd
 from redisConn import get_userdata
-from .scheduler import schedule_to_shut_down_ec2, sched
+from scheduler import schedule_to_shut_down_ec2, sched
 
 reserved_instance_id = os.getenv('reserved_instance_id')
 SCHEDULE_TO_STOP_EC2 = True
