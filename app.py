@@ -16,6 +16,19 @@ SCHEDULE_TO_STOP_EC2 = True
 app = Sanic('wechat_service')
 
 
+@atexit.register
+def on_exit():
+    sched.shutdown()
+
+
+if SCHEDULE_TO_STOP_EC2:
+        logger.info('[SCHEDULE] starting')
+        sched.remove_all_jobs()
+        sched.add_job(schedule_to_shut_down_ec2, trigger='cron',
+                      args=(reserved_instance_id,), hour=22-8)
+        sched.start()
+        logger.info('[SCHEDULE] running')
+
 def message_handler(msg, user_id, data=None):
     valid, tokens = is_valid_cmd(msg, data)
     if valid:
@@ -50,15 +63,3 @@ async def main_get(request):
     return text(resp)
 
 
-@atexit.register
-def on_exit():
-    sched.shutdown()
-
-
-if __name__ == '__main__':
-    if SCHEDULE_TO_STOP_EC2:
-        sched.remove_all_jobs()
-        sched.add_job(schedule_to_shut_down_ec2, trigger='cron',
-                      args=(reserved_instance_id,), hour=22-8)
-        sched.start()
-        logger.info('[SCHEDULE] running')

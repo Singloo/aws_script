@@ -1,4 +1,4 @@
 boto3==1.20
 sanic==21.12
-redis
-apscheduler
+redis==4.1
+apscheduler==3.8.1

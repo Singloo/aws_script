@@ -3,11 +3,13 @@ from apscheduler.jobstores.redis import RedisJobStore
 from pytz import utc
 from ec2Handler import stop_ec2
 from logger import logger
-jobstores = RedisJobStore(
-    host='redis',
-    port=6379,
-    db=0
-)
+jobstores = {
+    'redis': RedisJobStore(
+        host='redis',
+        port=6379,
+        db=0
+    )
+}
 sched = BackgroundScheduler(jobstores=jobstores, timezone=utc)
 
 
