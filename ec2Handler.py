@@ -4,7 +4,8 @@ from logger import logger
 import os
 from botocore.exceptions import ClientError
 import time
-from redisConn import cache_userdata, get_userdata
+from redisConn import cache_userdata, cache_status_msg, get_status_msg
+import asyncio
 
 region_name = os.getenv('region_name')
 aws_access_key_id = os.getenv('aws_access_key_id')
@@ -91,16 +92,31 @@ def wait_for_ip(ins):
     return {'state': state, **compose_ss_token(ip)}
 
 
-def query_ec2_status(instance_id):
+async def _get_and_set_ec2_status(instance_id):
     ins = get_ec2_instance(instance_id)
     addon = wait_for_ip(ins) if ins.state['Name'] != 'stopped' else {
         'state': 'stopped'}
     msg = '\n \n'.join(addon.values())
-    logger.info(f'[status got] {msg}')
-    return True, msg
+    cache_status_msg(instance_id, msg)
+    logger.info(f'[{instance_id}] status msg cached')
+    return msg
 
 
-def ec2_action_handler(tokens, user_id):
+async def query_ec2_status(instance_id):
+    msg = get_status_msg(instance_id)
+    if msg is None:
+        msg = await _get_and_set_ec2_status(instance_id)
+        return True, msg
+    else:
+        logger.info(f'[{instance_id}] got cached status msg')
+        loop = asyncio.get_event_loop()
+        task = loop.create_task(_get_and_set_ec2_status(instance_id))
+        task.add_done_callback(
+            lambda *args: logger.info(f'[{instance_id}]: background task done'))
+        return True, msg
+
+
+async def ec2_action_handler(tokens, user_id):
     cmd = tokens[2]
     instance_id = tokens[1]
     try:
@@ -109,7 +125,8 @@ def ec2_action_handler(tokens, user_id):
         if cmd in ['stop']:
             success, resp = stop_ec2(instance_id)
         if cmd in ['state', 'status']:
-            success, resp = query_ec2_status(instance_id)
+            success, resp = await query_ec2_status(instance_id)
+
         cache_userdata(user_id, {'instance_id': instance_id})
         logger.info(f'[Cache data saved] {user_id}')
         return success, resp
