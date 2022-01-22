@@ -14,17 +14,18 @@ aws_secret_access_key = os.getenv('aws_secret_access_key')
 ss_str = os.getenv('ss_str')
 ss_port = os.getenv('ss_port')
 
+ec2 = boto3.resource('ec2',
+                     region_name=region_name,
+                     aws_access_key_id=aws_access_key_id,
+                     aws_secret_access_key=aws_secret_access_key
+                     )
+
 
 def destruct_msg(msg):
     return msg.strip().split(' ')
 
 
 def get_ec2_instance(instance_id):
-    ec2 = boto3.resource('ec2',
-                         region_name=region_name,
-                         aws_access_key_id=aws_access_key_id,
-                         aws_secret_access_key=aws_secret_access_key
-                         )
     filtered = ec2.instances.filter(
         InstanceIds=[instance_id]
     )
