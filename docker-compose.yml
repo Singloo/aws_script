@@ -10,7 +10,6 @@ services:
     networks:
       - internal
     depends_on:
-      - nginx
       - redis
     build:
       context: .
@@ -25,12 +24,5 @@ services:
       - net.core.somaxconn=1024
     networks:
       - internal
-  nginx:
-    container_name: nginx
-    image: nginx
-    network_mode: "host"
-    volumes:
-      - ./nginx:/etc/nginx/:ro
-    restart: always
 networks:
   internal:
