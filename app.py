@@ -31,14 +31,14 @@ if SCHEDULE_TO_STOP_EC2:
     logger.info('[SCHEDULE] running')
 
 
-async def _timeout(time: float = 2.9, resp=(False, TIME_OUT_MSG)):
+async def _timeout(time: float = 2.3, resp=(False, TIME_OUT_MSG)):
     await asyncio.sleep(time)
     return resp
 
 
-async def asyncRace(*args):
+async def asyncRace(*fs):
     loop = asyncio.get_event_loop()
-    tasks = [loop.create_task(f) for f in args]
+    tasks = [loop.create_task(f) for f in fs]
     done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
     return [o.result() for o in done]
 
@@ -46,7 +46,7 @@ async def asyncRace(*args):
 async def message_handler(msg, user_id, data=None):
     valid, tokens = is_valid_cmd(msg, data)
     if valid:
-        task_done_res = asyncRace(
+        task_done_res = await asyncRace(
             _timeout(), ec2_action_handler(tokens, user_id))
         logger.info(f'[app.py 51] async race result got: {task_done_res}')
         if len(task_done_res) == 1:
