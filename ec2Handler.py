@@ -21,8 +21,8 @@ ec2 = boto3.resource('ec2',
                      )
 
 
-def destruct_msg(msg):
-    return msg.strip().split(' ')
+def destruct_msg(msg: str):
+    return msg.lower().strip().split(' ')
 
 
 def get_ec2_instance(instance_id):
@@ -127,7 +127,7 @@ async def ec2_action_handler(tokens, user_id):
             success, resp = stop_ec2(instance_id)
         if cmd in ['state', 'status']:
             success, resp = await query_ec2_status(instance_id)
-
+        logger.info(f'[{user_id}] resp got')
         cache_userdata(user_id, {'instance_id': instance_id})
         logger.info(f'[Cache data saved] {user_id}')
         return success, resp

@@ -33,6 +33,7 @@ if SCHEDULE_TO_STOP_EC2:
 
 async def _timeout(time: float = 2.3, resp=(False, TIME_OUT_MSG)):
     await asyncio.sleep(time)
+    logger.warn('timeout timeout timeout')
     return resp
 
 
@@ -48,7 +49,7 @@ async def message_handler(msg, user_id, data=None):
     if valid:
         task_done_res = await asyncRace(
             _timeout(), ec2_action_handler(tokens, user_id))
-        logger.info(f'[app.py 51] async race result got: {task_done_res}')
+        logger.info(f'[{user_id}] async race result got: {task_done_res}')
         if len(task_done_res) == 1:
             return task_done_res[0][1]
         return [o[1] for o in task_done_res if o[1] != TIME_OUT_MSG][0]
