@@ -15,7 +15,6 @@ def cache_userdata(user_id, data):
 
 def get_userdata(user_id):
     res = redis_conn.get(user_id)
-    logger.info(f'[redis res] {user_id}:{res}')
     if res is None:
         return None
     return json.loads(res)
@@ -27,7 +26,6 @@ def cache_status_msg(instance_id, msg):
 
 def get_status_msg(instance_id):
     res = redis_conn.get(instance_id)
-    logger.info(f'[redis res] [cached msg] {instance_id}:{res}')
     if res is None:
         return None
     return json.loads(res)

@@ -3,7 +3,6 @@ import boto3
 from logger import logger
 import os
 from botocore.exceptions import ClientError
-import time
 from redisConn import cache_userdata, cache_status_msg, get_status_msg
 import asyncio
 
@@ -81,39 +80,57 @@ def compose_ss_token(ip,):
     }
 
 
-def wait_for_ip(ins):
+def load_ins(ins):
+    logger.info('[load_ins] start')
     ins.load()
+    logger.info('[load_ins] end')
+    return ins
+
+
+async def wait_for_ip(ins):
+    logger.info('[wait_for_ip] start')
+    ins = load_ins(ins)
     ip = ins.public_ip_address
     state = ins.state['Name']
+    loop_times = 1
     while ip is None:
-        time.sleep(0.2)
-        ins.load()
+        logger.info(f'[ip is none] wait for 0.2s')
+        await asyncio.sleep(0.2)
+        ins = load_ins(ins)
         ip = ins.public_ip_address
         state = ins.state['Name']
+        loop_times += 1
+    logger.info(f'[wait_for_ip] end [times] {loop_times}')
     return {'state': state, **compose_ss_token(ip)}
 
 
 async def _get_and_set_ec2_status(instance_id):
+    logger.info('[_get_and_set_ec2_status] start')
     ins = get_ec2_instance(instance_id)
-    addon = wait_for_ip(ins) if ins.state['Name'] != 'stopped' else {
+    addon = await wait_for_ip(ins) if ins.state['Name'] != 'stopped' else {
         'state': 'stopped'}
     msg = '\n \n'.join(addon.values())
     cache_status_msg(instance_id, msg)
     logger.info(f'[{instance_id}] status msg cached')
+    logger.info('[_get_and_set_ec2_status] end')
     return msg
 
 
 async def query_ec2_status(instance_id):
     msg = get_status_msg(instance_id)
+    logger.info(f'[redis res] [cached msg] {instance_id}:{msg}')
     if msg is None:
+        logger.info('[no cached msg] start to load ec2 ins')
         msg = await _get_and_set_ec2_status(instance_id)
+        logger.info('[no cached msg] ec2 status loaded')
         return True, msg
     else:
         logger.info(f'[{instance_id}] got cached status msg')
-        loop = asyncio.get_event_loop()
+        loop = asyncio.new_event_loop()
         task = loop.create_task(_get_and_set_ec2_status(instance_id))
         task.add_done_callback(
             lambda *args: logger.info(f'[{instance_id}]: background task done'))
+        logger.info(f'return cached status msg')
         return True, msg
 
 

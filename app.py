@@ -9,11 +9,11 @@ from verification import wechat_verification
 from ec2Handler import ec2_action_handler, is_valid_cmd
 from redisConn import get_userdata
 from scheduler import schedule_to_shut_down_ec2, sched
-import asyncio
+from util import async_race, _timeout, TIME_OUT_MSG
 
 reserved_instance_id = os.getenv('reserved_instance_id')
 SCHEDULE_TO_STOP_EC2 = True
-TIME_OUT_MSG = 'Sorry, operation didnt done on time, task is still running, please check it out later'
+
 app = Sanic('wechat_service')
 
 
@@ -31,23 +31,10 @@ if SCHEDULE_TO_STOP_EC2:
     logger.info('[SCHEDULE] running')
 
 
-async def _timeout(time: float = 2.3, resp=(False, TIME_OUT_MSG)):
-    await asyncio.sleep(time)
-    logger.warn('timeout timeout timeout')
-    return resp
-
-
-async def asyncRace(*fs):
-    loop = asyncio.get_event_loop()
-    tasks = [loop.create_task(f) for f in fs]
-    done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-    return [o.result() for o in done]
-
-
 async def message_handler(msg, user_id, data=None):
     valid, tokens = is_valid_cmd(msg, data)
     if valid:
-        task_done_res = await asyncRace(
+        task_done_res = await async_race(
             _timeout(), ec2_action_handler(tokens, user_id))
         logger.info(f'[{user_id}] async race result got: {task_done_res}')
         if len(task_done_res) == 1:
@@ -68,6 +55,7 @@ async def main_post(request: Request) -> HTTPResponse:
         fromUser = recMsg.ToUserName
         content = await message_handler(
             recMsg.Content, recMsg.FromUserName, cached_data)
+        logger.info(f'[{recMsg.FromUserName}] reply ready')
         replyMsg = reply.TextMsg(toUser, fromUser, content)
         return text(replyMsg.send())
     else:
