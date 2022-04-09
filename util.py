@@ -1,6 +1,6 @@
 import asyncio
 from logger import logger
-TIME_OUT_MSG = 'Sorry, operation didnt done on time, task is still running, please check it out later'
+TIME_OUT_MSG = "Sorry, operation didn't finish on time, task is still running, please check it out later"
 
 
 async def timeout(time: float = 2.3, resp=(False, TIME_OUT_MSG)):
