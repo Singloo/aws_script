@@ -7,6 +7,7 @@ from redisConn import cache_userdata, cache_status_msg, get_status_msg
 import asyncio
 from typing import List, TYPE_CHECKING, Tuple
 from myType import CachedData
+import aioboto3
 
 if TYPE_CHECKING:
     from mypy_boto3_ec2.client import EC2Client
@@ -23,23 +24,26 @@ aws_secret_access_key = os.getenv('aws_secret_access_key')
 ss_str = os.getenv('ss_str')
 ss_port = os.getenv('ss_port')
 
-ec2: EC2ServiceResource = boto3.resource('ec2',
-                                         region_name=region_name,
-                                         aws_access_key_id=aws_access_key_id,
-                                         aws_secret_access_key=aws_secret_access_key
-                                         )
 
 
 def destruct_msg(msg: str):
     return msg.lower().strip().split(' ')
 
 
-def get_ec2_instance(instance_id: str) -> Instance:
-    filtered = ec2.instances.filter(
-        InstanceIds=[instance_id]
-    )
-    ins = list(filtered.all())[0]
-    return ins
+async def get_ec2_instance(instance_id: str) -> Instance:
+    session = aioboto3.Session()
+    async with session.resource('ec2',
+                                region_name=region_name,
+                                aws_access_key_id=aws_access_key_id,
+                                aws_secret_access_key=aws_secret_access_key) as ec2:
+        ec2: EC2ServiceResource
+        filtered = ec2.instances.filter(
+            InstanceIds=[instance_id]
+        )
+        ins: Instance
+        async for item in filtered.limit(1):
+            ins = item
+        return ins
 
 
 def is_valid_cmd(msg: str, data: CachedData | None = None) -> Tuple[bool, List[str]]:
@@ -64,21 +68,25 @@ def is_valid_cmd(msg: str, data: CachedData | None = None) -> Tuple[bool, List[s
 
 
 async def start_ec2(instance_id: str) -> Tuple[bool, str]:
-    ins = get_ec2_instance(instance_id)
-    if ins.state['Name'] != 'stopped':
-        logger.info(f'[Instance is {ins.state["Name"]}]')
-        return False, f"Instance current state is {ins.state['Name']}"
-    response = ins.start()
+    ins = await get_ec2_instance(instance_id)
+    ins_state = await ins.state
+    ins_state = ins_state['Name']
+    if ins_state != 'stopped':
+        logger.info(f'[Instance is {ins_state}')
+        return False, f"Instance current state is {ins_state}"
+    response = await ins.start()
     logger.info('[Instance successfully started]')
     return True, response['StartingInstances'][0]['CurrentState']['Name']
 
 
 async def stop_ec2(instance_id: str) -> Tuple[bool, str]:
-    ins = get_ec2_instance(instance_id)
-    if ins.state['Name'] != 'running':
-        logger.info(f'i[nstance is] {ins.state["Name"]}')
-        return False, f"Instance current state is {ins.state['Name']}"
-    response = ins.stop()
+    ins = await get_ec2_instance(instance_id)
+    ins_state = await ins.state
+    ins_state = ins_state['Name']
+    if ins_state != 'running':
+        logger.info(f'i[nstance is] {ins_state}')
+        return False, f"Instance current state is {ins_state}"
+    response = await ins.stop()
     logger.info('[Instance successfully stopped]')
     return True, response['StoppingInstances'][0]['CurrentState']['Name']
 
@@ -90,34 +98,37 @@ def compose_ss_token(ip: str,):
     }
 
 
-def load_ins(ins: Instance) -> Instance:
+async def load_ins(ins: Instance) -> Instance:
+    '''
+    Deprecated
+    '''
     logger.info('[load_ins] start')
-    ins.load()
+    await ins.load()
     logger.info('[load_ins] end')
     return ins
 
 
 async def wait_for_ip(ins: Instance):
     logger.info('[wait_for_ip] start')
-    ins = load_ins(ins)
-    ip = ins.public_ip_address
-    state = ins.state['Name']
+    ip = await ins.public_ip_address
+    state = await ins.state
     loop_times = 1
     while ip is None:
         logger.info(f'[ip is none] wait for 0.2s')
         await asyncio.sleep(0.2)
-        ins = load_ins(ins)
-        ip = ins.public_ip_address
-        state = ins.state['Name']
+        ip = await ins.public_ip_address
+        state = await ins.state
         loop_times += 1
     logger.info(f'[wait_for_ip] end [times] {loop_times}')
-    return {'state': state, **compose_ss_token(ip)}
+    return {'state': state['Name'], **compose_ss_token(ip)}
 
 
 async def _get_and_set_ec2_status(instance_id: str):
     logger.info('[_get_and_set_ec2_status] start')
-    ins = get_ec2_instance(instance_id)
-    addon = await wait_for_ip(ins) if ins.state['Name'] != 'stopped' else {
+    ins = await get_ec2_instance(instance_id)
+    ins_state = await ins.state
+    ins_state = ins_state['Name']
+    addon = await wait_for_ip(ins) if ins_state != 'stopped' else {
         'state': 'stopped'}
     msg = '\n \n'.join(addon.values())
     await cache_status_msg(instance_id, msg)
