@@ -9,7 +9,8 @@ from verification import wechat_verification
 from ec2Handler import ec2_action_handler, is_valid_cmd
 from redisConn import get_userdata
 from scheduler import schedule_to_shut_down_ec2, sched
-from util import async_race, _timeout, TIME_OUT_MSG
+from util import async_race, timeout, TIME_OUT_MSG
+from myType import CachedData
 
 reserved_instance_id = os.getenv('reserved_instance_id')
 SCHEDULE_TO_STOP_EC2 = True
@@ -31,11 +32,11 @@ if SCHEDULE_TO_STOP_EC2:
     logger.info('[SCHEDULE] running')
 
 
-async def message_handler(msg, user_id, data=None):
+async def message_handler(msg: str, user_id: str, data: CachedData | None = None):
     valid, tokens = is_valid_cmd(msg, data)
     if valid:
         task_done_res = await async_race(
-            _timeout(), ec2_action_handler(tokens, user_id))
+            timeout(), ec2_action_handler(tokens, user_id))
         logger.info(f'[{user_id}] async race result got: {task_done_res}')
         if len(task_done_res) == 1:
             return task_done_res[0][1]
@@ -63,7 +64,7 @@ async def main_post(request: Request) -> HTTPResponse:
 
 
 @app.get('/wx')
-async def main_get(request):
+async def main_get(request: Request) -> HTTPResponse:
     resp = wechat_verification(request.args)
     if resp is None:
         return text('nah')

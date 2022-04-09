@@ -5,6 +5,16 @@ import os
 from botocore.exceptions import ClientError
 from redisConn import cache_userdata, cache_status_msg, get_status_msg
 import asyncio
+from typing import List, TYPE_CHECKING, Tuple
+from myType import CachedData
+
+if TYPE_CHECKING:
+    from mypy_boto3_ec2.client import EC2Client
+    from mypy_boto3_ec2.service_resource import EC2ServiceResource, Instance
+else:
+    EC2Client = object
+    EC2ServiceResource = object
+    Instance = object
 
 region_name = os.getenv('region_name')
 aws_access_key_id = os.getenv('aws_access_key_id')
@@ -13,18 +23,18 @@ aws_secret_access_key = os.getenv('aws_secret_access_key')
 ss_str = os.getenv('ss_str')
 ss_port = os.getenv('ss_port')
 
-ec2 = boto3.resource('ec2',
-                     region_name=region_name,
-                     aws_access_key_id=aws_access_key_id,
-                     aws_secret_access_key=aws_secret_access_key
-                     )
+ec2: EC2ServiceResource = boto3.resource('ec2',
+                                         region_name=region_name,
+                                         aws_access_key_id=aws_access_key_id,
+                                         aws_secret_access_key=aws_secret_access_key
+                                         )
 
 
 def destruct_msg(msg: str):
     return msg.lower().strip().split(' ')
 
 
-def get_ec2_instance(instance_id):
+def get_ec2_instance(instance_id: str) -> Instance:
     filtered = ec2.instances.filter(
         InstanceIds=[instance_id]
     )
@@ -32,7 +42,7 @@ def get_ec2_instance(instance_id):
     return ins
 
 
-def is_valid_cmd(msg, data=None):
+def is_valid_cmd(msg: str, data: CachedData | None = None) -> Tuple[bool, List[str]]:
     tokens = destruct_msg(msg)
     if msg in ['state', 'status', 'start', 'stop'] and data != None and data.get('instance_id') != None:
         logger.info('[reconstruct tokens with data]')
@@ -53,7 +63,7 @@ def is_valid_cmd(msg, data=None):
     return flag == 3, tokens
 
 
-def start_ec2(instance_id):
+async def start_ec2(instance_id: str) -> Tuple[bool, str]:
     ins = get_ec2_instance(instance_id)
     if ins.state['Name'] != 'stopped':
         logger.info(f'[Instance is {ins.state["Name"]}]')
@@ -63,7 +73,7 @@ def start_ec2(instance_id):
     return True, response['StartingInstances'][0]['CurrentState']['Name']
 
 
-def stop_ec2(instance_id):
+async def stop_ec2(instance_id: str) -> Tuple[bool, str]:
     ins = get_ec2_instance(instance_id)
     if ins.state['Name'] != 'running':
         logger.info(f'i[nstance is] {ins.state["Name"]}')
@@ -73,21 +83,21 @@ def stop_ec2(instance_id):
     return True, response['StoppingInstances'][0]['CurrentState']['Name']
 
 
-def compose_ss_token(ip,):
+def compose_ss_token(ip: str,):
     return {
         'new_ss_token': f"{ss_str}{ip}:{ss_port}",
         'ip': ip
     }
 
 
-def load_ins(ins):
+def load_ins(ins: Instance) -> Instance:
     logger.info('[load_ins] start')
     ins.load()
     logger.info('[load_ins] end')
     return ins
 
 
-async def wait_for_ip(ins):
+async def wait_for_ip(ins: Instance):
     logger.info('[wait_for_ip] start')
     ins = load_ins(ins)
     ip = ins.public_ip_address
@@ -104,7 +114,7 @@ async def wait_for_ip(ins):
     return {'state': state, **compose_ss_token(ip)}
 
 
-async def _get_and_set_ec2_status(instance_id):
+async def _get_and_set_ec2_status(instance_id: str):
     logger.info('[_get_and_set_ec2_status] start')
     ins = get_ec2_instance(instance_id)
     addon = await wait_for_ip(ins) if ins.state['Name'] != 'stopped' else {
@@ -116,7 +126,7 @@ async def _get_and_set_ec2_status(instance_id):
     return msg
 
 
-async def query_ec2_status(instance_id):
+async def query_ec2_status(instance_id: str):
     msg = get_status_msg(instance_id)
     logger.info(f'[redis res] [cached msg] {instance_id}:{msg}')
     if msg is None:
@@ -134,14 +144,14 @@ async def query_ec2_status(instance_id):
         return True, msg
 
 
-async def ec2_action_handler(tokens, user_id):
+async def ec2_action_handler(tokens: List[str], user_id: str) -> Tuple[bool, str]:
     cmd = tokens[2]
     instance_id = tokens[1]
     try:
         if cmd in ['start']:
-            success, resp = start_ec2(instance_id)
+            success, resp = await start_ec2(instance_id)
         if cmd in ['stop']:
-            success, resp = stop_ec2(instance_id)
+            success, resp = await stop_ec2(instance_id)
         if cmd in ['state', 'status']:
             success, resp = await query_ec2_status(instance_id)
         logger.info(f'[{user_id}] resp got')

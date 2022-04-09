@@ -3,9 +3,8 @@ from logger import logger
 TIME_OUT_MSG = 'Sorry, operation didnt done on time, task is still running, please check it out later'
 
 
-async def _timeout(time: float = 2.3, resp=(False, TIME_OUT_MSG)):
+async def timeout(time: float = 2.3, resp=(False, TIME_OUT_MSG)):
     await asyncio.sleep(time)
-    logger.warning('timeout timeout timeout')
     return resp
 
 

@@ -1,0 +1,30 @@
+version: '3.9'
+services:
+  wechat:
+    container_name: wechat_service_dev
+    restart: always
+    ports:
+      - "5001:5000"
+    env_file:
+      - ./prod.env
+    volumes:
+      - .:/apps
+    networks:
+      - timvel-internal
+    depends_on:
+      - redis
+    build:
+      context: .
+    image: wechat_service_dev
+    command: [ 'sanic', "-H0.0.0.0", '-d', '-p 5000', 'app.app' ]
+
+  redis:
+    container_name: redis
+    image: redis
+    restart: always
+    sysctls:
+      - net.core.somaxconn=1024
+    networks:
+      - timvel-internal
+networks:
+  timvel-internal:
