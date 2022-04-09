@@ -1,0 +1,1 @@
+docker build -f ./Docker/Dockerfile -t registry.cn-hangzhou.aliyuncs.com/timvel/wechat_service  .
