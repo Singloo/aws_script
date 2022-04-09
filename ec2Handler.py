@@ -120,14 +120,14 @@ async def _get_and_set_ec2_status(instance_id: str):
     addon = await wait_for_ip(ins) if ins.state['Name'] != 'stopped' else {
         'state': 'stopped'}
     msg = '\n \n'.join(addon.values())
-    cache_status_msg(instance_id, msg)
+    await cache_status_msg(instance_id, msg)
     logger.info(f'[{instance_id}] status msg cached')
     logger.info('[_get_and_set_ec2_status] end')
     return msg
 
 
 async def query_ec2_status(instance_id: str):
-    msg = get_status_msg(instance_id)
+    msg = await get_status_msg(instance_id)
     logger.info(f'[redis res] [cached msg] {instance_id}:{msg}')
     if msg is None:
         logger.info('[no cached msg] start to load ec2 ins')
@@ -155,7 +155,7 @@ async def ec2_action_handler(tokens: List[str], user_id: str) -> Tuple[bool, str
         if cmd in ['state', 'status']:
             success, resp = await query_ec2_status(instance_id)
         logger.info(f'[{user_id}] resp got')
-        cache_userdata(user_id, {'instance_id': instance_id})
+        await cache_userdata(user_id, {'instance_id': instance_id})
         logger.info(f'[Cache data saved] {user_id}')
         return success, resp
 

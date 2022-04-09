@@ -47,7 +47,7 @@ async def message_handler(msg: str, user_id: str, data: CachedData | None = None
 @app.post('/wx')
 async def main_post(request: Request) -> HTTPResponse:
     recMsg = receive.parse_xml(request.body)
-    cached_data = get_userdata(recMsg.FromUserName)
+    cached_data = await get_userdata(recMsg.FromUserName)
     logger.info(f'[user cached data] {cached_data}')
     logger.info(
         f'[content] {recMsg.Content}, [user] {recMsg.FromUserName} [msgId] {recMsg.MsgId} [type] {recMsg.MsgType}')
