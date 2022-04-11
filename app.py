@@ -6,7 +6,7 @@ import src.messageHandlers.receive as receive
 import src.messageHandlers.reply as reply
 from src.messageHandlers.verification import wechat_verification
 from src.messageHandlers.ec2Handler import ec2_action_handler,is_valid_cmd
-from src.DB.redis import get_userdata
+from src.db.redis import get_userdata
 from src.schedulers import schedule_to_shut_down_ec2, sched
 from src.utils.util import async_race, timeout, TIME_OUT_MSG
 from src.types import CachedData

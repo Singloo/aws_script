@@ -3,7 +3,7 @@ import boto3
 from src.logger import logger
 import os
 from botocore.exceptions import ClientError
-from src.DB.redis import cache_userdata, cache_status_msg, get_status_msg
+from src.db.redis import cache_userdata, cache_status_msg, get_status_msg
 import asyncio
 from typing import List, TYPE_CHECKING, Tuple
 from src.types import CachedData
