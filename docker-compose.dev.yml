@@ -25,6 +25,8 @@ services:
     sysctls:
       - net.core.somaxconn=1024
     networks:
-      - timvel-internal
+      - timvel
 networks:
-  timvel-internal:
+  timvel:
+    external:
+      name: timvel-network
