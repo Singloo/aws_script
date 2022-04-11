@@ -1,13 +1,14 @@
 import re
 import boto3
-from logger import logger
+from src.logger import logger
 import os
 from botocore.exceptions import ClientError
-from redisConn import cache_userdata, cache_status_msg, get_status_msg
+from src.DB.redis import cache_userdata, cache_status_msg, get_status_msg
 import asyncio
 from typing import List, TYPE_CHECKING, Tuple
-from myType import CachedData
+from src.types import CachedData
 import aioboto3
+from src.utils.constants import REGION_NAME, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, SS_PORT, SS_STR
 
 if TYPE_CHECKING:
     from mypy_boto3_ec2.client import EC2Client
@@ -16,13 +17,6 @@ else:
     EC2Client = object
     EC2ServiceResource = object
     Instance = object
-
-region_name = os.getenv('region_name')
-aws_access_key_id = os.getenv('aws_access_key_id')
-aws_secret_access_key = os.getenv('aws_secret_access_key')
-
-ss_str = os.getenv('ss_str')
-ss_port = os.getenv('ss_port')
 
 
 
@@ -33,9 +27,9 @@ def destruct_msg(msg: str):
 async def get_ec2_instance(instance_id: str) -> Instance:
     session = aioboto3.Session()
     async with session.resource('ec2',
-                                region_name=region_name,
-                                aws_access_key_id=aws_access_key_id,
-                                aws_secret_access_key=aws_secret_access_key) as ec2:
+                                region_name=REGION_NAME,
+                                aws_access_key_id=AWS_ACCESS_KEY_ID,
+                                aws_secret_access_key=AWS_SECRET_ACCESS_KEY) as ec2:
         ec2: EC2ServiceResource
         filtered = ec2.instances.filter(
             InstanceIds=[instance_id]
@@ -93,7 +87,7 @@ async def stop_ec2(instance_id: str) -> Tuple[bool, str]:
 
 def compose_ss_token(ip: str,):
     return {
-        'new_ss_token': f"{ss_str}{ip}:{ss_port}",
+        'new_ss_token': f"{SS_STR}{ip}:{SS_PORT}",
         'ip': ip
     }
 

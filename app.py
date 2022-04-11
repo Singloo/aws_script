@@ -1,18 +1,17 @@
 from sanic import HTTPResponse, Request, Sanic
-import os
 import atexit
 from sanic.response import json, text
-from logger import logger
-import receive
-import reply
-from verification import wechat_verification
-from ec2Handler import ec2_action_handler, is_valid_cmd
-from redisConn import get_userdata
-from scheduler import schedule_to_shut_down_ec2, sched
-from util import async_race, timeout, TIME_OUT_MSG
-from myType import CachedData
+from src.logger import logger
+import src.messageHandlers.receive as receive
+import src.messageHandlers.reply as reply
+from src.messageHandlers.verification import wechat_verification
+from src.messageHandlers.ec2Handler import ec2_action_handler,is_valid_cmd
+from src.DB.redis import get_userdata
+from src.schedulers import schedule_to_shut_down_ec2, sched
+from src.utils.util import async_race, timeout, TIME_OUT_MSG
+from src.types import CachedData
+from src.utils.constants import RESERVED_INSTANCE_ID
 
-reserved_instance_id = os.getenv('reserved_instance_id')
 SCHEDULE_TO_STOP_EC2 = True
 
 app = Sanic('wechat_service')
@@ -27,7 +26,7 @@ if SCHEDULE_TO_STOP_EC2:
     logger.info('[SCHEDULE] starting')
     sched.remove_all_jobs()
     sched.add_job(schedule_to_shut_down_ec2, trigger='cron',
-                  args=(reserved_instance_id,), hour=22-8)
+                  args=(RESERVED_INSTANCE_ID,), hour=22-8)
     sched.start()
     logger.info('[SCHEDULE] running')
 
@@ -36,7 +35,7 @@ async def message_handler(msg: str, user_id: str, data: CachedData | None = None
     valid, tokens = is_valid_cmd(msg, data)
     if valid:
         task_done_res = await async_race(
-            timeout(), ec2_action_handler(tokens, user_id))
+            timeout(4), ec2_action_handler(tokens, user_id))
         logger.info(f'[{user_id}] async race result got: {task_done_res}')
         if len(task_done_res) == 1:
             return task_done_res[0][1]

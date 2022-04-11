@@ -1,7 +1,7 @@
-from logger import logger
+from src.logger import logger
 from redis import asyncio as aioredis
 import json
-from myType import CachedData
+from src.types import CachedData
 
 redis_conn = aioredis.Redis(
     host='redis',

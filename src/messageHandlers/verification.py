@@ -1,5 +1,5 @@
 import hashlib
-from logger import logger
+from src.logger import logger
 
 def wechat_verification(args):
     logger.info(args)
