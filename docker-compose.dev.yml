@@ -6,11 +6,11 @@ services:
     ports:
       - "5001:5000"
     env_file:
-      - ./prod.env
+      - ./dev.env
     volumes:
       - .:/apps
     networks:
-      - timvel-internal
+      - timvel
     depends_on:
       - redis
     build:
@@ -25,6 +25,7 @@ services:
     sysctls:
       - net.core.somaxconn=1024
     networks:
-      - timvel-internal
+      - timvel
 networks:
-  timvel-internal:
+  timvel:
+      name: timvel-network

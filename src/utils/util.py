@@ -1,5 +1,5 @@
 import asyncio
-from logger import logger
+from src.logger import logger
 TIME_OUT_MSG = "Sorry, operation didn't finish on time, task is still running, please check it out later"
 
 

@@ -1,8 +1,8 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.jobstores.redis import RedisJobStore
 from pytz import utc
-from ec2Handler import stop_ec2
-from logger import logger
+from src.messageHandlers.ec2Handler import stop_ec2
+from src.logger import logger
 jobstores = {
     'redis': RedisJobStore(
         host='redis',

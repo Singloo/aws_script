@@ -1,9 +1,4 @@
 import logging
-
-
-
-
-
 def get_logger():
     logger = logging.getLogger()
     handler1 = logging.StreamHandler()
