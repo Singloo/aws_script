@@ -10,7 +10,7 @@ services:
     volumes:
       - .:/apps
     networks:
-      - timvel-internal
+      - timvel
     depends_on:
       - redis
     build:
@@ -28,5 +28,4 @@ services:
       - timvel
 networks:
   timvel:
-    external:
       name: timvel-network
