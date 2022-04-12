@@ -1,16 +1,17 @@
 from sanic import HTTPResponse, Request, Sanic
 import atexit
-from sanic.response import json, text
+from sanic.response import json, text, stream, ResponseStream
 from src.logger import logger
 import src.messageHandlers.receive as receive
 import src.messageHandlers.reply as reply
 from src.messageHandlers.verification import wechat_verification
-from src.messageHandlers.ec2Handler import ec2_action_handler,is_valid_cmd
+from src.messageHandlers.ec2Handler import ec2_action_handler, is_valid_cmd
 from src.db.redis import get_userdata
 from src.schedulers import schedule_to_shut_down_ec2, sched
 from src.utils.util import async_race, timeout, TIME_OUT_MSG
 from src.types import CachedData
 from src.utils.constants import RESERVED_INSTANCE_ID
+from functools import partial
 
 SCHEDULE_TO_STOP_EC2 = True
 
@@ -43,6 +44,11 @@ async def message_handler(msg: str, user_id: str, data: CachedData | None = None
     return 'We dont have service ready for you'
 
 
+async def strem_response(response: ResponseStream, msgs: list[str]):
+    for msg in msgs:
+        await response.write(msg)
+
+
 @app.post('/wx')
 async def main_post(request: Request) -> HTTPResponse:
     recMsg = receive.parse_xml(request.body)
@@ -57,7 +63,7 @@ async def main_post(request: Request) -> HTTPResponse:
             recMsg.Content, recMsg.FromUserName, cached_data)
         logger.info(f'[{recMsg.FromUserName}] reply ready')
         replyMsg = reply.TextMsg(toUser, fromUser, content)
-        return text(replyMsg.send())
+        await request.respond(text(replyMsg.send()))
     else:
         return text('success')
 

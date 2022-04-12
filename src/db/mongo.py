@@ -1,5 +1,5 @@
 from pymongo import MongoClient
-from pymongo.database import Database
+from pymongo.database import Database, Collection
 from src.utils.constants import MONGO_DBNAME, MONGO_HOST, MONGO_PASSWORD, MONGO_PORT, MONGO_USERNAME
 
 
@@ -7,6 +7,7 @@ class Mongo(object):
     def __init__(self):
         self._mongoClient: MongoClient
         self._db: Database
+        self.awsCredential: Collection
         self.connect()
 
     def connect(self):
@@ -16,4 +17,8 @@ class Mongo(object):
             username=MONGO_USERNAME, password=MONGO_PASSWORD,
             connect=False
         )
-        self._db = self.mongoClient[MONGO_DBNAME]
+        self._db = self._mongoClient[MONGO_DBNAME]
+        self.awsCredential = self._db.get_collection('awsCredential')
+
+
+mongo = Mongo()
