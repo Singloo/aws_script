@@ -6,3 +6,4 @@ boto3-stubs
 boto3-stubs[essential]
 aioboto3==9.5.0
 pymongo
+cryptography
