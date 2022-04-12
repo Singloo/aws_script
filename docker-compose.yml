@@ -26,5 +26,4 @@ services:
       - timvel
 networks:
   timvel:
-    external:
       name: timvel-network
