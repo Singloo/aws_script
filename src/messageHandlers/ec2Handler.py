@@ -96,7 +96,7 @@ async def stop_ec2(instance_id: str) -> Tuple[bool, str]:
         ins_state = await ins.state
         ins_state = ins_state['Name']
         if ins_state != 'running':
-            logger.info(f'i[nstance is] {ins_state}')
+            logger.info(f'[instance is] {ins_state}')
             return False, f"Instance current state is {ins_state}"
         response = await ins.stop()
         logger.info('[Instance successfully stopped]')
