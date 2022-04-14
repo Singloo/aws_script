@@ -10,23 +10,20 @@ redis_conn = aioredis.Redis(
 )
 
 
-async def cache_userdata(user_id: str, data: CachedData):
-    await redis_conn.set(user_id, json.dumps(data), ex=10*60)
+class CacheKeys:
+    def userdata(user_id: str):
+        return f'userdata/{user_id}'
+
+    def status_msg(instance_id: str):
+        return f'statusmsg/{instance_id}'
 
 
-async def get_userdata(user_id: str) -> CachedData:
-    res = await redis_conn.get(user_id)
-    if res is None:
-        return None
-    return json.loads(res)
+async def save(key: str, data, exp: int | None = None):
+    await redis_conn.set(key, json.dumps(data), ex=exp)
 
 
-async def cache_status_msg(instance_id: str, msg: str):
-    await redis_conn.set(instance_id, json.dumps(msg), ex=60)
-
-
-async def get_status_msg(instance_id: str) -> str:
-    res = await redis_conn.get(instance_id)
+async def get(key: str):
+    res = await redis_conn.get(key)
     if res is None:
         return None
     return json.loads(res)
