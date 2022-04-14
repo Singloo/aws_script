@@ -6,7 +6,7 @@ import src.messageHandlers.receive as receive
 import src.messageHandlers.reply as reply
 from src.messageHandlers.verification import wechat_verification
 from src.messageHandlers.ec2Handler import ec2_action_handler, is_valid_cmd
-from src.db.redis import get_userdata
+from src.db.redis import get, CacheKeys
 from src.schedulers import schedule_to_shut_down_ec2, sched
 from src.utils.util import async_race, timeout, TIME_OUT_MSG
 from src.types import CachedData
@@ -52,7 +52,7 @@ async def strem_response(response: ResponseStream, msgs: list[str]):
 @app.post('/wx')
 async def main_post(request: Request) -> HTTPResponse:
     recMsg = receive.parse_xml(request.body)
-    cached_data = await get_userdata(recMsg.FromUserName)
+    cached_data = await get(CacheKeys.userdata(recMsg.FromUserName))
     logger.info(f'[user cached data] {cached_data}')
     logger.info(
         f'[content] {recMsg.Content}, [user] {recMsg.FromUserName} [msgId] {recMsg.MsgId} [type] {recMsg.MsgType}')
