@@ -3,7 +3,7 @@ import boto3
 from src.logger import logger
 import os
 from botocore.exceptions import ClientError
-from src.db.redis import save, get, CacheKeys
+from src.db.redis import json_save, json_get, CacheKeys
 import asyncio
 from typing import List, TYPE_CHECKING, Tuple
 from src.types import CachedData
@@ -144,14 +144,14 @@ async def _get_and_set_ec2_status(instance_id: str):
         addon = await wait_for_ip(ins) if ins_state != 'stopped' else {
             'state': 'stopped'}
         msg = '\n \n'.join(addon.values())
-        await save(CacheKeys.status_msg(instance_id), msg, exp=60*2)
+        await json_save(CacheKeys.status_msg(instance_id), msg, exp=60*2)
         logger.info(f'[{instance_id}] status msg cached')
         logger.info('[_get_and_set_ec2_status] end')
         return msg
 
 
 async def query_ec2_status(instance_id: str):
-    msg = await get(CacheKeys.status_msg(instance_id))
+    msg = await json_get(CacheKeys.status_msg(instance_id))
     logger.info(f'[redis res] [cached msg] {instance_id}:{msg}')
     if msg is None:
         logger.info('[no cached msg] start to load ec2 ins')
@@ -179,7 +179,7 @@ async def ec2_action_handler(tokens: List[str], user_id: str) -> Tuple[bool, str
         if cmd in ['state', 'status']:
             success, resp = await query_ec2_status(instance_id)
         logger.info(f'[{user_id}] resp got')
-        await save(CacheKeys.userdata(user_id), {'instance_id': instance_id}, exp=10*60)
+        await json_save(CacheKeys.userdata(user_id), {'instance_id': instance_id}, exp=10*60)
         logger.info(f'[Cache data saved] {user_id}')
         return success, resp
 
