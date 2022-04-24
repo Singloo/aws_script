@@ -90,8 +90,8 @@ class InputValidator():
 
     @property
     def is_finished(self):
-        if self.current_idx < len(self._validators) - 1:
-            return False
+        if self.current_idx == len(self._validators) - 1:
+            return True
 
         def _every_validator_got_answer(validator: Validator):
             return validator.value != None
@@ -99,7 +99,11 @@ class InputValidator():
         return list_every(self._validators, _every_validator_got_answer)
 
     def get_one(self):
+        # expired?
         if self.is_expired:
             raise SessionExpiredException()
+        # finished?
         if self.is_finished:
             raise SessionFinished()
+        # return current
+        return self.current_validator
