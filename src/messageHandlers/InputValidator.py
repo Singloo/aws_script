@@ -19,7 +19,7 @@ class ValidatorInvalidInput(Exception):
         super().__init__('Invalid input', *args)
 
 
-class ValidatorExceedMaximumTimes(Exception):
+class ValidatorInvalidAndExceedMaximumTimes(Exception):
     def __init__(self, *args: object) -> None:
         super().__init__('Exceeded maxium times', *args)
 
@@ -62,12 +62,16 @@ class Validator():
     @value.setter
     def value(self, newValue: str):
         self._times += 1
-        if self.is_max_times_exceeded:
-            raise ValidatorExceedMaximumTimes()
-        if not isinstance(newValue, str):
-            raise ValidatorInvalidInput()
-        if not self._validator(newValue):
-            raise ValidatorInvalidInput()
+        try:
+            if not isinstance(newValue, str):
+                raise ValidatorInvalidInput()
+            if not self._validator(newValue):
+                raise ValidatorInvalidInput()
+        except ValidatorInvalidInput:
+            if self._times >= self.MAX_TIMES:
+                # exceed maximum times error only happened when input is invalid
+                raise ValidatorInvalidAndExceedMaximumTimes()
+            raise
         self._value = newValue
 
 
