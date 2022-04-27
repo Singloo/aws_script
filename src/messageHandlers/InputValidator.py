@@ -59,6 +59,14 @@ class Validator():
     def is_max_times_exceeded(self):
         return self._times > self.MAX_TIMES
 
+    @property
+    def prompt(self):
+        return self._prompt
+
+    @property
+    def invalid_prompt(self):
+        return self._invalid_prompt
+
     @value.setter
     def value(self, newValue: str):
         self._times += 1
@@ -102,7 +110,7 @@ class InputValidator():
 
         return list_every(self._validators, _every_validator_got_answer)
 
-    def get_one(self):
+    def _get_one(self):
         # expired?
         if self.is_expired:
             raise SessionExpiredException()
@@ -111,3 +119,21 @@ class InputValidator():
             raise SessionFinished()
         # return current
         return self.current_validator
+
+    def save(self):
+        # do something
+        self.current_idx += 1
+
+    def get_prompt(self):
+        validator = self._get_one()
+        return validator.prompt
+
+    def validate_input(self, input: str):
+        validator = self._get_one()
+        validator.value = input
+        self.save()
+
+    def next(self, input: str | None = None):
+        if input is not None:
+            self.validate_input(input)
+        return self.get_prompt()
