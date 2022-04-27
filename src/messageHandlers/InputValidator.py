@@ -128,12 +128,19 @@ class InputValidator():
         validator = self._get_one()
         return validator.prompt
 
+    def collect(self):
+        return {
+            'infoValidator': {
+                'validators': self._validators
+            }
+        }
+
     def validate_input(self, input: str):
         validator = self._get_one()
         validator.value = input
-        self.save()
 
     def next(self, input: str | None = None):
         if input is not None:
             self.validate_input(input)
+            self.save()
         return self.get_prompt()
