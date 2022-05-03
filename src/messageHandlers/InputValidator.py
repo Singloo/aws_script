@@ -2,6 +2,7 @@ from src.types import ValidatorFunc
 import time
 from src.types.type import CachedData
 from src.utils.util import list_every
+from src.db.redis import pickle_get, pickle_save
 
 
 class SessionExpiredException(Exception):
@@ -22,6 +23,15 @@ class ValidatorInvalidInput(Exception):
 class ValidatorInvalidAndExceedMaximumTimes(Exception):
     def __init__(self, *args: object) -> None:
         super().__init__('Exceeded maxium times', *args)
+
+
+class InfoValidatorDataCorupted(Exception):
+    '''
+        Data corupted
+    '''
+
+    def __init__(self, *args: object) -> None:
+        super().__init__('Data corupted', *args)
 
 
 class Validator():
@@ -84,13 +94,25 @@ class Validator():
 
 
 class InputValidator():
-    def __init__(self, validators: list[Validator]) -> None:
+    @classmethod
+    def init_db_input_validator(cls, validators: list[Validator], uniq_key: str,  col_name: str):
+        return cls(validators, uniq_key, col_name=col_name)
+
+    @staticmethod
+    async def load_validator(uniq_key: str):
+        return await pickle_get(uniq_key)
+
+    def __init__(self, validators: list[Validator], uniq_key: str, **kwargs) -> None:
         self._validators = validators
         self.current_idx = 0
         # seconds
         self.start_time = time.time()
         self.session_duration = 5*60
         self.end_time = self.start_time + self.session_duration
+
+        self.uniq_key = uniq_key
+        # will return when validator finished
+        self.other_args = kwargs
 
     @property
     def current_validator(self):
@@ -102,13 +124,16 @@ class InputValidator():
 
     @property
     def is_finished(self):
-        if self.current_idx == len(self._validators) - 1:
-            return True
+        is_max_idx = self.current_idx == len(self._validators) - 1
 
         def _every_validator_got_answer(validator: Validator):
             return validator.value != None
+        is_all_value_filled = list_every(
+            self._validators, _every_validator_got_answer)
 
-        return list_every(self._validators, _every_validator_got_answer)
+        if (int(is_max_idx) + int(is_all_value_filled)) == 1:
+            raise InfoValidatorDataCorupted()
+        return is_max_idx & is_all_value_filled
 
     def _get_one(self):
         # expired?
@@ -120,27 +145,27 @@ class InputValidator():
         # return current
         return self.current_validator
 
-    def save(self):
-        # do something
+    async def save(self):
+        '''
+            increase current_index
+            save to redis
+        '''
         self.current_idx += 1
+        await pickle_save(self.uniq_key, self)
 
     def get_prompt(self):
         validator = self._get_one()
         return validator.prompt
 
     def collect(self):
-        return {
-            'infoValidator': {
-                'validators': self._validators
-            }
-        }
+        pass
 
     def validate_input(self, input: str):
         validator = self._get_one()
         validator.value = input
 
-    def next(self, input: str | None = None):
+    async def next(self, input: str | None = None):
         if input is not None:
             self.validate_input(input)
-            self.save()
+            await self.save()
         return self.get_prompt()
