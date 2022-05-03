@@ -1,12 +1,12 @@
 from functools import partial
 from src.logger import logger
-from redis import asyncio as aioredis
+from redis import asyncio as aioredis, Redis
 import json
 from src.types import CachedData
 from typing import Any, Callable
 import pickle
 
-redis_conn = aioredis.Redis(
+redis_conn: Redis = aioredis.Redis(
     host='redis',
     port=6379,
     db=0
@@ -43,12 +43,12 @@ class JsonSerializer(Serializer):
 
 class PicklSerializer(Serializer):
     @staticmethod
-    def dumps(data: Any) -> str:
-        return pickle.dumps(data).decode('utf-8')
+    def dumps(data: Any) -> bytes:
+        return pickle.dumps(data)
 
     @staticmethod
-    def loads(data: str) -> Any:
-        return pickle.loads(str.encode('utf-8'))
+    def loads(data: bytes) -> Any:
+        return pickle.loads(data)
 
 
 async def save(key: str, data: Any, serializer: Serializer,  exp: int | None = None,):
