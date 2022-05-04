@@ -25,7 +25,7 @@ class ValidatorInvalidAndExceedMaximumTimes(Exception):
         super().__init__('Exceeded maxium times', *args)
 
 
-class InfoValidatorDataCorupted(Exception):
+class ValidatorDataCorupted(Exception):
     '''
         Data corupted
     '''
@@ -93,7 +93,7 @@ class Validator():
         self._value = newValue
 
 
-class InputValidator():
+class ValidatorManager():
     @classmethod
     def init_db_input_validator(cls, validators: list[Validator], uniq_key: str,  col_name: str):
         return cls(validators, uniq_key, col_name=col_name)
@@ -132,7 +132,7 @@ class InputValidator():
             self._validators, _every_validator_got_answer)
 
         if (int(is_max_idx) + int(is_all_value_filled)) == 1:
-            raise InfoValidatorDataCorupted
+            raise ValidatorDataCorupted
         return is_max_idx & is_all_value_filled
 
     def _get_one(self):
