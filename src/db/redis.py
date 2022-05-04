@@ -20,6 +20,12 @@ class CacheKeys:
     def status_msg(instance_id: str):
         return f'statusmsg/{instance_id}'
 
+    def aws_validator_key(user_id: str):
+        return f'validator/{user_id}/aws'
+        
+    def ec2_validator_key(user_id:str):
+        return f'validator/{user_id}/ec2'
+
 
 class Serializer():
     @staticmethod

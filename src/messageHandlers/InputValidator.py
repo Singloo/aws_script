@@ -82,13 +82,13 @@ class Validator():
         self._times += 1
         try:
             if not isinstance(newValue, str):
-                raise ValidatorInvalidInput()
+                raise ValidatorInvalidInput
             if not self._validator(newValue):
-                raise ValidatorInvalidInput()
+                raise ValidatorInvalidInput
         except ValidatorInvalidInput:
             if self._times >= self.MAX_TIMES:
                 # exceed maximum times error only happened when input is invalid
-                raise ValidatorInvalidAndExceedMaximumTimes()
+                raise ValidatorInvalidAndExceedMaximumTimes
             raise
         self._value = newValue
 
@@ -132,16 +132,16 @@ class InputValidator():
             self._validators, _every_validator_got_answer)
 
         if (int(is_max_idx) + int(is_all_value_filled)) == 1:
-            raise InfoValidatorDataCorupted()
+            raise InfoValidatorDataCorupted
         return is_max_idx & is_all_value_filled
 
     def _get_one(self):
         # expired?
         if self.is_expired:
-            raise SessionExpiredException()
+            raise SessionExpiredException
         # finished?
         if self.is_finished:
-            raise SessionFinished()
+            raise SessionFinished
         # return current
         return self.current_validator
 
