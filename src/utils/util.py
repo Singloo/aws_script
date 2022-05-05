@@ -1,6 +1,8 @@
 import asyncio
 from typing import Any, TypeVar, Callable
 from src.logger import logger
+import re
+from re import Pattern
 TIME_OUT_MSG = "Sorry, operation didn't finish on time, task is still running, please check it out later"
 
 
@@ -28,3 +30,13 @@ def list_every(list: list[T], handler: Callable[[T], bool]) -> bool:
             res = False
             break
     return res
+
+
+def re_strict_match(pattern: Pattern[str], string: str,):
+    res = re.search(pattern, string)
+    return res != None & res.group(0) == string
+
+
+def re_test(pattern: Pattern[str], string: str,):
+    res = re.search(pattern, string)
+    return res != None
