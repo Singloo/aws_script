@@ -36,10 +36,17 @@ AWS_VALIDATORS:list[Validator] = [
 
  
 class TestAwsValidator(unittest.TestCase):
+    validator_manager: ValidatorManager
     def __init__(self) -> None:
+        self._init_validator()
+        
+    def _init_validator(self):
         self.validator_manager = ValidatorManager.init_db_input_validator(
             AWS_VALIDATORS,
             'test_aws_validator',
             'aws'
         )
     
+    async def test_input_correct(self):
+        prompt1 = await self.validator_manager.next()
+        self.assertEqual(prompt1,AWS_VALIDATORS[0].prompt)
