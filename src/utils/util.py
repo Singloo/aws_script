@@ -32,11 +32,11 @@ def list_every(list: list[T], handler: Callable[[T], bool]) -> bool:
     return res
 
 
-def re_strict_match(pattern: Pattern[str], string: str,):
+def re_strict_match(string: str, pattern: Pattern[str],):
     res = re.search(pattern, string)
-    return res != None & res.group(0) == string
+    return res != None and res.group(0) == string
 
 
-def re_test(pattern: Pattern[str], string: str,):
+def re_test(string: str, pattern: Pattern[str],):
     res = re.search(pattern, string)
     return res != None

@@ -50,7 +50,7 @@ class Validator():
     # should encrypt value
     _encrypt: bool
 
-    def __init__(self, prompt: str, invalid_prompt: str, attribute_name: str, validator: ValidatorFunc, encrypt: bool) -> None:
+    def __init__(self, prompt: str, invalid_prompt: str, attribute_name: str, validator: ValidatorFunc, encrypt: bool = False) -> None:
         self._prompt = prompt
         self._invalid_prompt = invalid_prompt
         self._attribute_name = attribute_name
@@ -124,7 +124,7 @@ class ValidatorManager():
 
     @property
     def is_finished(self):
-        is_max_idx = self.current_idx == len(self._validators) - 1
+        is_max_idx = self.current_idx == len(self._validators)
 
         def _every_validator_got_answer(validator: Validator):
             return validator.value != None
