@@ -1,10 +1,11 @@
+from tkinter import E
 from src.types import ValidatorFunc
 import time
 from src.utils.util import list_every
 from src.db.redis import pickle_get, pickle_save
 
 
-class SessionExpiredException(Exception):
+class SessionExpired(Exception):
     def __init__(self, *args: object) -> None:
         super().__init__('Session expired, try again.', *args)
 
@@ -31,6 +32,11 @@ class ValidatorDataCorupted(Exception):
 
     def __init__(self, *args: object) -> None:
         super().__init__('Data corupted', *args)
+
+
+class NoSuchSession(Exception):
+    def __init__(self, *args: object) -> None:
+        super().__init__('No such session', *args)
 
 
 class Validator():
@@ -99,7 +105,10 @@ class ValidatorManager():
 
     @staticmethod
     async def load_validator(uniq_key: str):
-        return await pickle_get(uniq_key)
+        ins = await pickle_get(uniq_key)
+        if ins is None:
+            raise NoSuchSession
+        return ins
 
     def __init__(self, validators: list[Validator], uniq_key: str, **kwargs) -> None:
         self._validators = validators
@@ -132,44 +141,44 @@ class ValidatorManager():
 
         if (int(is_max_idx) + int(is_all_value_filled)) == 1:
             raise ValidatorDataCorupted
-        return is_max_idx & is_all_value_filled
+        return is_max_idx and is_all_value_filled
 
-    def _get_one(self):
+    def check_if_continue(self):
         # expired?
         if self.is_expired:
-            raise SessionExpiredException
+            raise SessionExpired
         # finished?
         if self.is_finished:
             raise SessionFinished
-        # return current
-        return self.current_validator
 
     @property
     def get_session_left_time(self):
         return round(self.end_time - time.time())
 
-    async def save(self, hasInput: bool):
+    async def save(self):
         '''
             increase current_index
             save to redis
         '''
-        if hasInput:
-            self.current_idx += 1
         await pickle_save(self.uniq_key, self, exp=self.get_session_left_time)
 
     def get_prompt(self):
-        validator = self._get_one()
+        validator = self.current_validator
         return validator.prompt
 
     def collect(self):
         pass
 
     def validate_input(self, input: str):
-        validator = self._get_one()
+        validator = self.current_validator
         validator.value = input
+        self.current_idx += 1
 
     async def next(self, input: str | None = None):
-        if input is not None:
-            self.validate_input(input)
-        await self.save(input != None)
+        try:
+            if input is not None:
+                self.validate_input(input)
+        finally:
+            self.check_if_continue()
+            await self.save()
         return self.get_prompt()
