@@ -175,6 +175,12 @@ class ValidatorManager():
         self.current_idx += 1
 
     async def next(self, input: str | None = None):
+        '''
+        1. if has input, check if input is valid. valid ? current_idx + 1 : raise error
+        2. check if session if finished or expired. True ? raise error
+        3. save session
+        4. return current or next validator prompt
+        '''
         try:
             if input is not None:
                 self.validate_input(input)
