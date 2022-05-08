@@ -6,12 +6,13 @@ from src.types import CachedData
 from typing import Any, Callable
 import pickle
 
-redis_conn: Redis = aioredis.Redis(
-    host='redis',
-    port=6379,
-    db=0,
-    max_connections=20
-)
+def get_redis() -> Redis:
+    return aioredis.Redis(
+        host='redis',
+        port=6379,
+        db=0,
+        max_connections=20
+    )
 
 
 class CacheKeys:
@@ -59,11 +60,11 @@ class PicklSerializer(Serializer):
 
 
 async def save(key: str, data: Any, serializer: Serializer,  exp: int | None = None,):
-    await redis_conn.set(key, serializer.dumps(data), ex=exp)
+    await get_redis().set(key, serializer.dumps(data), ex=exp)
 
 
 async def get(key: str, serializer: Serializer):
-    res = await redis_conn.get(key)
+    res = await get_redis().get(key)
     if res is None:
         return None
     return serializer.loads(res)

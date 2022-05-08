@@ -4,7 +4,6 @@ from src.utils.util import re_strict_match, re_test
 from functools import partial
 from src.utils.constants import AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, REGION_NAME
 from src.db.redis import CacheKeys
-import asyncio
 
 regions = ["ap", "us", "ca", "eu", "me", "af", "sa", "cn"]
 
@@ -43,9 +42,6 @@ class TestAwsValidator(unittest.IsolatedAsyncioTestCase):
 
     def setUp(self) -> None:
         pass
-
-    def tearDown(self) -> None:
-        return super().tearDown()
 
     def _init_validator(self, uniq_key: str):
         return ValidatorManager.init_db_input_validator(
