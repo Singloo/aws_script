@@ -79,14 +79,12 @@ class Validator():
     @value.setter
     def value(self, newValue: str):
         self._times += 1
-        print(f'[value setter] {newValue}')
         try:
             if not isinstance(newValue, str):
                 raise ValidatorInvalidInput
             if not self._validator(newValue):
                 raise ValidatorInvalidInput
         except ValidatorInvalidInput:
-            print(f'[value setter] invalid {newValue}')
             if self.is_max_times_exceeded:
                 # exceed maximum times error only happened when input is invalid
                 raise ValidatorInvalidAndExceedMaximumTimes
@@ -114,7 +112,6 @@ class ValidatorManager():
         self.uniq_key = uniq_key
         # will return when validator finished
         self.other_args = kwargs
-        # print(f'[init] {self.uniq_key}')
 
     @property
     def current_validator(self):
@@ -126,7 +123,6 @@ class ValidatorManager():
 
     @property
     def is_finished(self):
-        print(f'[is_finished 129 {self.uniq_key}]  {self.current_idx}')
         is_max_idx = self.current_idx == len(self._validators)
 
         def _every_validator_got_answer(validator: Validator):
@@ -135,8 +131,6 @@ class ValidatorManager():
             self._validators, _every_validator_got_answer)
 
         if (int(is_max_idx) + int(is_all_value_filled)) == 1:
-            print(
-                f'[is_finished {self.uniq_key}] {self.current_idx} {is_max_idx} {is_all_value_filled} {[v.value for v in self._validators]}')
             raise ValidatorDataCorupted
         return is_max_idx & is_all_value_filled
 
@@ -161,9 +155,7 @@ class ValidatorManager():
         '''
         if hasInput:
             self.current_idx += 1
-        print(f'[save {self.uniq_key}] idx++ {self.current_idx}')
         await pickle_save(self.uniq_key, self, exp=self.get_session_left_time)
-        print(f'[save 166]')
 
     def get_prompt(self):
         validator = self._get_one()

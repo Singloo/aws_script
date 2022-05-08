@@ -55,44 +55,34 @@ class TestAwsValidator(unittest.IsolatedAsyncioTestCase):
         validator_manager = self._init_validator(key)
         prompt1 = await validator_manager.next()
         self.assertEqual(prompt1, AWS_VALIDATORS[0].prompt)
-        print('test_input_correct step1 pass')
 
         validator_manager = await ValidatorManager.load_validator(key)
-        print(f'[test 64] {validator_manager}')
         prompt2 = await validator_manager.next(AWS_ACCESS_KEY_ID)
         self.assertEqual(prompt2, AWS_VALIDATORS[1].prompt)
-        print('test_input_correct step2 pass')
 
         validator_manager = await ValidatorManager.load_validator(key)
         prompt3 = await validator_manager.next(AWS_SECRET_ACCESS_KEY)
         self.assertEqual(prompt3, AWS_VALIDATORS[2].prompt)
-        print('test_input_correct step3 pass')
 
         with self.assertRaises(SessionFinished):
-            print(f'[test_input_correct] 67 {validator_manager.current_idx}')
             validator_manager = await ValidatorManager.load_validator(key)
             await validator_manager.next(REGION_NAME)
-        print('test_input_correct step4 pass')
 
     async def test_input_invalid(self):
         key = CacheKeys.aws_validator_key('test_input_invalid')
         validator_manager = self._init_validator(key)
         prompt1 = await validator_manager.next()
         self.assertEqual(prompt1, AWS_VALIDATORS[0].prompt)
-        print('test_input_invalid step1 pass')
         
         validator_manager = await ValidatorManager.load_validator(key)
         prompt2 = await validator_manager.next(AWS_ACCESS_KEY_ID)
         self.assertEqual(prompt2, AWS_VALIDATORS[1].prompt)
-        print('test_input_invalid step2 pass')
 
         validator_manager = await ValidatorManager.load_validator(key)
         prompt3 = await validator_manager.next(AWS_SECRET_ACCESS_KEY)
         self.assertEqual(prompt3, AWS_VALIDATORS[2].prompt)
-        print('test_input_invalid step3 pass')
 
         with self.assertRaises(ValidatorInvalidInput):
-            print(f'[test_input_invalid] 67 {validator_manager.current_idx}')
             validator_manager = await ValidatorManager.load_validator(key)
             await validator_manager.next('invalid-region-name')
 
