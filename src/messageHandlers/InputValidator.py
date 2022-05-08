@@ -1,6 +1,5 @@
 from src.types import ValidatorFunc
 import time
-from src.types.type import CachedData
 from src.utils.util import list_every
 from src.db.redis import pickle_get, pickle_save
 
@@ -67,7 +66,7 @@ class Validator():
 
     @property
     def is_max_times_exceeded(self):
-        return self._times > self.MAX_TIMES
+        return self._times >= self.MAX_TIMES
 
     @property
     def prompt(self):
@@ -80,13 +79,15 @@ class Validator():
     @value.setter
     def value(self, newValue: str):
         self._times += 1
+        print(f'[value setter] {newValue}')
         try:
             if not isinstance(newValue, str):
                 raise ValidatorInvalidInput
             if not self._validator(newValue):
                 raise ValidatorInvalidInput
         except ValidatorInvalidInput:
-            if self._times >= self.MAX_TIMES:
+            print(f'[value setter] invalid {newValue}')
+            if self.is_max_times_exceeded:
                 # exceed maximum times error only happened when input is invalid
                 raise ValidatorInvalidAndExceedMaximumTimes
             raise
@@ -113,6 +114,7 @@ class ValidatorManager():
         self.uniq_key = uniq_key
         # will return when validator finished
         self.other_args = kwargs
+        # print(f'[init] {self.uniq_key}')
 
     @property
     def current_validator(self):
@@ -124,6 +126,7 @@ class ValidatorManager():
 
     @property
     def is_finished(self):
+        print(f'[is_finished 129 {self.uniq_key}]  {self.current_idx}')
         is_max_idx = self.current_idx == len(self._validators)
 
         def _every_validator_got_answer(validator: Validator):
@@ -132,6 +135,8 @@ class ValidatorManager():
             self._validators, _every_validator_got_answer)
 
         if (int(is_max_idx) + int(is_all_value_filled)) == 1:
+            print(
+                f'[is_finished {self.uniq_key}] {self.current_idx} {is_max_idx} {is_all_value_filled} {[v.value for v in self._validators]}')
             raise ValidatorDataCorupted
         return is_max_idx & is_all_value_filled
 
@@ -145,13 +150,20 @@ class ValidatorManager():
         # return current
         return self.current_validator
 
-    async def save(self):
+    @property
+    def get_session_left_time(self):
+        return round(self.end_time - time.time())
+
+    async def save(self, hasInput: bool):
         '''
             increase current_index
             save to redis
         '''
-        self.current_idx += 1
-        await pickle_save(self.uniq_key, self)
+        if hasInput:
+            self.current_idx += 1
+        print(f'[save {self.uniq_key}] idx++ {self.current_idx}')
+        await pickle_save(self.uniq_key, self, exp=self.get_session_left_time)
+        print(f'[save 166]')
 
     def get_prompt(self):
         validator = self._get_one()
@@ -167,5 +179,5 @@ class ValidatorManager():
     async def next(self, input: str | None = None):
         if input is not None:
             self.validate_input(input)
-            await self.save()
+        await self.save(input != None)
         return self.get_prompt()

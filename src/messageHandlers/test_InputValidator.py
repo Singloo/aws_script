@@ -1,8 +1,10 @@
 import unittest
-from .inputValidator import ValidatorManager, Validator, SessionFinished, SessionExpiredException
+from .inputValidator import ValidatorManager, Validator, SessionFinished, SessionExpiredException, ValidatorInvalidInput
 from src.utils.util import re_strict_match, re_test
 from functools import partial
 from src.utils.constants import AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, REGION_NAME
+from src.db.redis import CacheKeys
+import asyncio
 
 regions = ["ap", "us", "ca", "eu", "me", "af", "sa", "cn"]
 
@@ -38,27 +40,65 @@ AWS_VALIDATORS: list[Validator] = [
 
 
 class TestAwsValidator(unittest.IsolatedAsyncioTestCase):
-    validator_manager: ValidatorManager
 
     def setUp(self) -> None:
-        self._init_validator()
+        pass
 
-    def _init_validator(self):
-        self.validator_manager = ValidatorManager.init_db_input_validator(
+    def tearDown(self) -> None:
+        return super().tearDown()
+
+    def _init_validator(self, uniq_key: str):
+        return ValidatorManager.init_db_input_validator(
             AWS_VALIDATORS,
-            'test_aws_validator',
+            uniq_key,
             'aws'
         )
 
     async def test_input_correct(self):
-        prompt1 = await self.validator_manager.next()
+        key = CacheKeys.aws_validator_key('test_input_correct')
+        validator_manager = self._init_validator(key)
+        prompt1 = await validator_manager.next()
         self.assertEqual(prompt1, AWS_VALIDATORS[0].prompt)
-        prompt2 = await self.validator_manager.next(AWS_ACCESS_KEY_ID)
+        print('test_input_correct step1 pass')
+
+        validator_manager = await ValidatorManager.load_validator(key)
+        print(f'[test 64] {validator_manager}')
+        prompt2 = await validator_manager.next(AWS_ACCESS_KEY_ID)
         self.assertEqual(prompt2, AWS_VALIDATORS[1].prompt)
-        prompt3 = await self.validator_manager.next(AWS_SECRET_ACCESS_KEY)
+        print('test_input_correct step2 pass')
+
+        validator_manager = await ValidatorManager.load_validator(key)
+        prompt3 = await validator_manager.next(AWS_SECRET_ACCESS_KEY)
         self.assertEqual(prompt3, AWS_VALIDATORS[2].prompt)
+        print('test_input_correct step3 pass')
+
         with self.assertRaises(SessionFinished):
-            await self.validator_manager.next(REGION_NAME)
+            print(f'[test_input_correct] 67 {validator_manager.current_idx}')
+            validator_manager = await ValidatorManager.load_validator(key)
+            await validator_manager.next(REGION_NAME)
+        print('test_input_correct step4 pass')
+
+    async def test_input_invalid(self):
+        key = CacheKeys.aws_validator_key('test_input_invalid')
+        validator_manager = self._init_validator(key)
+        prompt1 = await validator_manager.next()
+        self.assertEqual(prompt1, AWS_VALIDATORS[0].prompt)
+        print('test_input_invalid step1 pass')
+        
+        validator_manager = await ValidatorManager.load_validator(key)
+        prompt2 = await validator_manager.next(AWS_ACCESS_KEY_ID)
+        self.assertEqual(prompt2, AWS_VALIDATORS[1].prompt)
+        print('test_input_invalid step2 pass')
+
+        validator_manager = await ValidatorManager.load_validator(key)
+        prompt3 = await validator_manager.next(AWS_SECRET_ACCESS_KEY)
+        self.assertEqual(prompt3, AWS_VALIDATORS[2].prompt)
+        print('test_input_invalid step3 pass')
+
+        with self.assertRaises(ValidatorInvalidInput):
+            print(f'[test_input_invalid] 67 {validator_manager.current_idx}')
+            validator_manager = await ValidatorManager.load_validator(key)
+            await validator_manager.next('invalid-region-name')
 
 
 if __name__ == '__main__':
