@@ -15,3 +15,5 @@ MONGO_PASSWORD = os.getenv('MONGO_PASSWORD')
 MONGO_HOST = os.getenv('MONGO_HOST')
 MONGO_PORT = os.getenv('MONGO_PORT')
 MONGO_DBNAME = os.getenv('MONGO_DBNAME')
+
+CRYPTO_KEY = os.getenv('CRYPTO_KEY')

@@ -1,5 +1,8 @@
 import asyncio
+from typing import Any, TypeVar, Callable
 from src.logger import logger
+import re
+from re import Pattern
 TIME_OUT_MSG = "Sorry, operation didn't finish on time, task is still running, please check it out later"
 
 
@@ -13,3 +16,27 @@ async def async_race(*fs):
     tasks = [loop.create_task(f) for f in fs]
     done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
     return [o.result() for o in done]
+
+T = TypeVar('T')
+
+
+def list_every(list: list[T], handler: Callable[[T], bool]) -> bool:
+    '''
+        same as js array.every
+    '''
+    res = True
+    for item in list:
+        if handler(item) == False:
+            res = False
+            break
+    return res
+
+
+def re_strict_match(string: str, pattern: Pattern[str],):
+    res = re.search(pattern, string)
+    return res != None and res.group(0) == string
+
+
+def re_test(string: str, pattern: Pattern[str],):
+    res = re.search(pattern, string)
+    return res != None
