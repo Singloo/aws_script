@@ -1,5 +1,6 @@
+import asyncio
 import unittest
-from .inputValidator import ValidatorManager, Validator, SessionFinished, SessionExpiredException, ValidatorInvalidInput
+from .inputValidator import ValidatorManager, Validator, SessionFinished, SessionExpired, ValidatorInvalidInput, ValidatorInvalidAndExceedMaximumTimes
 from src.utils.util import re_strict_match, re_test
 from functools import partial
 from src.utils.constants import AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, REGION_NAME
@@ -73,7 +74,7 @@ class TestAwsValidator(unittest.IsolatedAsyncioTestCase):
         validator_manager = self._init_validator(key)
         prompt1 = await validator_manager.next()
         self.assertEqual(prompt1, AWS_VALIDATORS[0].prompt)
-        
+
         validator_manager = await ValidatorManager.load_validator(key)
         prompt2 = await validator_manager.next(AWS_ACCESS_KEY_ID)
         self.assertEqual(prompt2, AWS_VALIDATORS[1].prompt)
@@ -85,6 +86,45 @@ class TestAwsValidator(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(ValidatorInvalidInput):
             validator_manager = await ValidatorManager.load_validator(key)
             await validator_manager.next('invalid-region-name')
+
+    async def test_exceed_maximum_times(self):
+        key = CacheKeys.aws_validator_key('test_exceed_maximum_times')
+        validator_manager = self._init_validator(key)
+        prompt1 = await validator_manager.next()
+        self.assertEqual(prompt1, AWS_VALIDATORS[0].prompt)
+
+        with self.assertRaises(ValidatorInvalidInput):
+            validator_manager = await ValidatorManager.load_validator(key)
+            await validator_manager.next('invalid-secret')
+
+        with self.assertRaises(ValidatorInvalidInput):
+            validator_manager = await ValidatorManager.load_validator(key)
+            await validator_manager.next('invalid-secret2')
+
+        with self.assertRaises(ValidatorInvalidAndExceedMaximumTimes):
+            validator_manager: ValidatorManager = await ValidatorManager.load_validator(key)
+            await validator_manager.next('invalid-secret')
+
+    async def test_session_expired(self):
+        key = CacheKeys.aws_validator_key('test_session_expired')
+        validator_manager = self._init_validator(key)
+        validator_manager.end_time = validator_manager.start_time + 1
+
+        prompt1 = await validator_manager.next()
+        self.assertEqual(prompt1, AWS_VALIDATORS[0].prompt)
+
+        validator_manager = await ValidatorManager.load_validator(key)
+        prompt2 = await validator_manager.next(AWS_ACCESS_KEY_ID)
+        self.assertEqual(prompt2, AWS_VALIDATORS[1].prompt)
+
+        validator_manager = await ValidatorManager.load_validator(key)
+        prompt3 = await validator_manager.next(AWS_SECRET_ACCESS_KEY)
+        self.assertEqual(prompt3, AWS_VALIDATORS[2].prompt)
+
+        with self.assertRaises(SessionExpired):
+            validator_manager = await ValidatorManager.load_validator(key)
+            await asyncio.sleep(1)
+            await validator_manager.next(REGION_NAME)
 
 
 if __name__ == '__main__':
