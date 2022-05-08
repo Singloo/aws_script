@@ -9,7 +9,8 @@ import pickle
 redis_conn: Redis = aioredis.Redis(
     host='redis',
     port=6379,
-    db=0
+    db=0,
+    max_connections=20
 )
 
 
@@ -22,8 +23,8 @@ class CacheKeys:
 
     def aws_validator_key(user_id: str):
         return f'validator/{user_id}/aws'
-        
-    def ec2_validator_key(user_id:str):
+
+    def ec2_validator_key(user_id: str):
         return f'validator/{user_id}/ec2'
 
 
