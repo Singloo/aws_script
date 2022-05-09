@@ -7,5 +7,5 @@ def destruct_msg(msg: str) -> list[str]:
 
 
 class InputMapperEntry(BaseMessageHandler):
-    aws = AwsHandler()
-    ec2 = Ec2Handler()
+    aws = AwsHandler
+    ec2 = Ec2Handler

@@ -1,4 +1,6 @@
 from . import BaseMessageHandler
+
+
 class AwsBind(BaseMessageHandler):
     def __call__(self, cmds: list[str]):
         print('bind')
@@ -14,11 +16,9 @@ class AwsRm(BaseMessageHandler):
         print('rm', cmds)
 
 
-
 class AwsHandler(BaseMessageHandler):
-    bind = AwsBind()
+    bind = AwsBind
 
-    list = AwsList()
+    list = AwsList
 
-    rm = AwsRm()
-
+    rm = AwsRm

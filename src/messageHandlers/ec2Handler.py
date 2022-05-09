@@ -225,11 +225,11 @@ class Ec2Cron(BaseMessageHandler):
 
 
 class Ec2Handler(BaseMessageHandler):
-    bind = Ec2Bind()
-    rm = Ec2Rm()
-    start = Ec2Start()
-    status = Ec2Status()
-    state = Ec2Status()
-    stop = Ec2Stop()
-    alias = Ec2Alias()
-    cron = Ec2Cron()
+    bind = Ec2Bind
+    rm = Ec2Rm
+    start = Ec2Start
+    status = Ec2Status
+    state = Ec2Status
+    stop = Ec2Stop
+    alias = Ec2Alias
+    cron = Ec2Cron
