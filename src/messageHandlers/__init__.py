@@ -10,7 +10,7 @@ class BaseMessageHandler():
     def __init__(self,params:Any = {}) -> None:
         self.params = params
     def __call__(self, cmds: list[str]):
-        first = cmds[0]
+        first = cmds[0] 
         res = getattr(self, first, None)
         if res is None:
             self.fallback()

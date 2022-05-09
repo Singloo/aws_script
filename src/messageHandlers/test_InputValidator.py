@@ -1,6 +1,6 @@
 import asyncio
 import unittest
-from .inputValidator import ValidatorManager, Validator, SessionFinished, SessionExpired, ValidatorInvalidInput, ValidatorInvalidAndExceedMaximumTimes
+from .InputValidator import ValidatorManager, Validator, SessionFinished, SessionExpired, ValidatorInvalidInput, ValidatorInvalidAndExceedMaximumTimes
 from src.utils.util import re_strict_match, re_test
 from functools import partial
 from src.utils.constants import AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, REGION_NAME
