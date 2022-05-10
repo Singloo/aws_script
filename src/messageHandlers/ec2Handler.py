@@ -1,7 +1,5 @@
 import re
-import boto3
 from src.logger import logger
-import os
 from botocore.exceptions import ClientError
 from src.db.redis import json_save, json_get, CacheKeys
 import asyncio
@@ -9,6 +7,7 @@ from typing import List, TYPE_CHECKING, Tuple
 from src.types import CachedData
 import aioboto3
 from src.utils.constants import REGION_NAME, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, SS_PORT, SS_STR
+from . import BaseMessageHandler
 
 if TYPE_CHECKING:
     from mypy_boto3_ec2.client import EC2Client
@@ -186,3 +185,51 @@ async def ec2_action_handler(tokens: List[str], user_id: str) -> Tuple[bool, str
     except ClientError as e:
         logger.error(e)
         return False, 'An aws error encountered'
+
+class Ec2Bind(BaseMessageHandler):
+    def __call__(self, cmds: list[str]):
+        print('ec2 bind')
+
+
+class Ec2List(BaseMessageHandler):
+    def __call__(self, cmds: list[str]):
+        print('ec2 list')
+
+
+class Ec2Rm(BaseMessageHandler):
+    def __call__(self, cmds: list[str]):
+        print('ec2 rm', cmds)
+
+
+class Ec2Start(BaseMessageHandler):
+    def __call__(self, cmds: list[str]):
+        print('ec2 start', cmds)
+
+class Ec2Status(BaseMessageHandler):
+    def __call__(self, cmds: list[str]):
+        print('ec2 status', cmds)
+
+class Ec2Stop(BaseMessageHandler):
+    def __call__(self, cmds: list[str]):
+        print('ec2 stop', cmds)
+
+
+class Ec2Alias(BaseMessageHandler):
+    def __call__(self, cmds: list[str]):
+        print('ec2 alias', cmds)
+
+
+class Ec2Cron(BaseMessageHandler):
+    def __call__(self, cmds: list[str]):
+        print('ec2 cron', cmds)
+
+
+class Ec2Handler(BaseMessageHandler):
+    bind = Ec2Bind
+    rm = Ec2Rm
+    start = Ec2Start
+    status = Ec2Status
+    state = Ec2Status
+    stop = Ec2Stop
+    alias = Ec2Alias
+    cron = Ec2Cron
