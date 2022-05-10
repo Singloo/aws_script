@@ -1,4 +1,4 @@
-from . import BaseMessageHandler, NoSuchHandler
+from . import BaseMessageHandler, NoSuchHandler, AsyncBaseMessageHandler
 import unittest
 
 
@@ -55,6 +55,62 @@ class InputMapperEntry(BaseMessageHandler):
     def ec2(self):
         return Ec2Handler(self.params)
 
+# async
+
+
+class AsyncEc2Start(AsyncBaseMessageHandler):
+    async def __call__(self, cmds: list[str]):
+        print('ec2 start', cmds)
+        return 'start ' + cmds[0]
+
+
+class AsyncEc2Cron(AsyncBaseMessageHandler):
+    async def __call__(self, cmds: list[str]):
+        print('ec2 cron', cmds)
+        return 'cron'
+
+
+class AsyncEc2Handler(AsyncBaseMessageHandler):
+    @property
+    def start(self):
+        return AsyncEc2Start(self.params)
+
+    @property
+    def cron(self):
+        return AsyncEc2Cron(self.params)
+
+
+class AsyncAwsList(AsyncBaseMessageHandler):
+    async def __call__(self, cmds: list[str]):
+        print('[84 list]', cmds)
+        return 'list'
+
+
+class AsyncAwsRm(AsyncBaseMessageHandler):
+    async def __call__(self, cmds: list[str]):
+        print('rm', cmds)
+        return 'rm'
+
+
+class AsyncAwsHandler(AsyncBaseMessageHandler):
+    @property
+    def list(self):
+        return AsyncAwsList(self.params)
+
+    @property
+    def rm(self):
+        return AsyncAwsRm(self.params)
+
+
+class AsyncInputMapperEntry(AsyncBaseMessageHandler):
+    @property
+    def aws(self):
+        return AsyncAwsHandler(self.params)
+
+    @property
+    def ec2(self):
+        return AsyncEc2Handler(self.params)
+
 
 class TestMessageHandler(unittest.TestCase):
     def test_should_find_handler(self):
@@ -67,6 +123,27 @@ class TestMessageHandler(unittest.TestCase):
         res1 = InputMapperEntry()(cmd1)
         self.assertEqual(res1, 'start someId')
 
+    def test_should_raise_exception(self):
+        with self.assertRaises(NoSuchHandler):
+            cmd = ['ec2', 'cmd2']
+            InputMapperEntry()(cmd)
+
+
+class TestAsyncMessageHandler(unittest.IsolatedAsyncioTestCase):
+    async def test_should_find_handler(self):
+        cmd1 = ['aws', 'list']
+        res1 = await AsyncInputMapperEntry()(cmd1)
+        self.assertEqual(res1, 'list')
+
+    async def test_should_return_param(self):
+        cmd1 = ['ec2', 'start', 'someId']
+        res1 = await AsyncInputMapperEntry()(cmd1)
+        self.assertEqual(res1, 'start someId')
+
+    async def test_should_raise_exception(self):
+        with self.assertRaises(NoSuchHandler):
+            cmd = ['ec2', 'cmd2']
+            await AsyncInputMapperEntry()(cmd)
 
 if __name__ == '__main__':
     unittest.main()
