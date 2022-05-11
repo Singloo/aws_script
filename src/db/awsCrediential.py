@@ -1,17 +1,18 @@
 from .mongo import Mongo
-from bson import objectid
+from bson.objectid import ObjectId
+from src.types import AwsCrediential
 
 
-class AwsCrediential(Mongo):
+class AwsCredientialRepo(Mongo):
     def __init__(self):
         super().__init__()
         self.col = self.get_collection('awsCrediential')
-    
 
-    def insert(self,doc):
+    def insert(self, doc: AwsCrediential) -> ObjectId:
         res = self.col.insert_one(doc)
-    
-    def delete_with_id(self,object_id:str):
+        return res.inserted_id
+
+    def delete_with_id(self, _id: str):
         self.col.delete_one({
-            '_id':objectid(objectid)
+            '_id': ObjectId(_id)
         })
