@@ -6,8 +6,7 @@ from src.utils.constants import MONGO_DBNAME, MONGO_HOST, MONGO_PASSWORD, MONGO_
 class Mongo(object):
     def __init__(self):
         self._mongoClient: MongoClient
-        self._db: Database
-        self.awsCredential: Collection
+        self.db: Database
         self.connect()
 
     def connect(self):
@@ -17,8 +16,10 @@ class Mongo(object):
             username=MONGO_USERNAME, password=MONGO_PASSWORD,
             connect=False
         )
-        self._db = self._mongoClient[MONGO_DBNAME]
-        self.awsCredential = self._db.get_collection('awsCredential')
+        self.db = self._mongoClient[MONGO_DBNAME]
+
+    def get_collection(self, name: str) -> Collection:
+        return self.db.get_collection(name)
 
 
 mongo = Mongo()
