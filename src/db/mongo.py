@@ -1,6 +1,7 @@
 from pymongo import MongoClient
 from pymongo.database import Database, Collection
 from src.utils.constants import MONGO_DBNAME, MONGO_HOST, MONGO_PASSWORD, MONGO_PORT, MONGO_USERNAME
+from bson.objectid import ObjectId
 
 
 class Mongo(object):
@@ -8,6 +9,12 @@ class Mongo(object):
         self._mongoClient: MongoClient
         self.db: Database
         self.connect()
+        self.col: Collection
+
+    def delete_from_id(self, _id: ObjectId):
+        return self.col.delete_one({
+            '_id': _id
+        })
 
     def connect(self):
         self._mongoClient = MongoClient(
