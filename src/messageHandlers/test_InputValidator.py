@@ -15,6 +15,9 @@ region_nums = ['1', '2', '3', '4']
 
 region_regex_str = f"^({'|'.join(regions)})-({'|'.join(orientations)})-({'|'.join(region_nums)})$"
 
+ENCRYPTED_AWS_ACCESS_KEY_ID = 'gAAAAABifQ0ZryKyLTCcWOnm1I1fY7f6An3y-_6v0N-948IXguwDNL_DJqVtCcUn19mnkBcChwrLH__wg_LGBXwtxSMhqrssguT81F18A0Gy6b-cbmG_9Mw='
+ENCRYPTED_AWS_ACCESS_KEY = 'gAAAAABifQ0Z0iGFRh303FLZLqkFpd93NujDTXdoCBq8Z6D_IdFHxKjTPuRIED5EZmq_tSw3hGOp8DcueIg4h9dksszRFMJogbMugXfvvZjNfwynYI7tdPG18GPuxoI8sR_245CdEtIG'
+
 AWS_VALIDATORS: list[Validator] = [
     Validator(
         prompt='aws key id',

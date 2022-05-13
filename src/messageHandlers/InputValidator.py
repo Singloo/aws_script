@@ -1,8 +1,9 @@
 from tkinter import E
 from src.types import ValidatorFunc
 import time
-from src.utils.util import list_every
+from src.utils.util import list_every, list_reduce
 from src.db.redis import pickle_get, pickle_save
+import src.utils.crypto as Crypto
 
 
 class SessionExpired(Exception):
@@ -68,6 +69,8 @@ class Validator():
 
     @property
     def value(self):
+        if self._encrypt:
+            return Crypto.encrypt(self._value)
         return self._value
 
     @property
@@ -167,7 +170,15 @@ class ValidatorManager():
         return validator.prompt
 
     def collect(self):
-        pass
+        def _extract_value(prev, curr: Validator):
+            return {
+                **prev,
+                [curr._attribute_name]: curr.value
+            }
+        return {
+            'other_args': self.other_args,
+            'object': list_reduce(self._validators, _extract_value, {})
+        }
 
     def validate_input(self, input: str):
         validator = self.current_validator
