@@ -172,10 +172,7 @@ class ValidatorManager():
         return validator.prompt
 
     def collect(self):
-        print('[174] collect')
-
         def _extract_value(prev, curr: Validator):
-            print(f'[176] {prev} {curr._attribute_name} {curr.value}')
             return {
                 **prev,
                 curr._attribute_name: curr.value
