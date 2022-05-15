@@ -1,10 +1,9 @@
 from functools import partial
-from src.logger import logger
 from redis import asyncio as aioredis, Redis
 import json
-from src.types import CachedData
 from typing import Any, Callable
 import pickle
+
 
 def get_redis() -> Redis:
     return aioredis.Redis(
@@ -68,6 +67,10 @@ async def get(key: str, serializer: Serializer):
     if res is None:
         return None
     return serializer.loads(res)
+
+
+async def delete(*keys: str):
+    await get_redis().delete(*keys)
 
 json_save: Callable[[str, Any, int | None], None] = partial(
     save, serializer=JsonSerializer)

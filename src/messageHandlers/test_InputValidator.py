@@ -5,6 +5,7 @@ from src.utils.util import re_strict_match, re_test
 from functools import partial
 from src.utils.constants import AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, REGION_NAME
 from src.db.redis import CacheKeys
+from src.utils.crypto import decrypt
 
 regions = ["ap", "us", "ca", "eu", "me", "af", "sa", "cn"]
 
@@ -14,9 +15,6 @@ orientations = ['north', 'west', 'east', 'south',
 region_nums = ['1', '2', '3', '4']
 
 region_regex_str = f"^({'|'.join(regions)})-({'|'.join(orientations)})-({'|'.join(region_nums)})$"
-
-ENCRYPTED_AWS_ACCESS_KEY_ID = 'gAAAAABifQ0ZryKyLTCcWOnm1I1fY7f6An3y-_6v0N-948IXguwDNL_DJqVtCcUn19mnkBcChwrLH__wg_LGBXwtxSMhqrssguT81F18A0Gy6b-cbmG_9Mw='
-ENCRYPTED_AWS_ACCESS_KEY = 'gAAAAABifQ0Z0iGFRh303FLZLqkFpd93NujDTXdoCBq8Z6D_IdFHxKjTPuRIED5EZmq_tSw3hGOp8DcueIg4h9dksszRFMJogbMugXfvvZjNfwynYI7tdPG18GPuxoI8sR_245CdEtIG'
 
 AWS_VALIDATORS: list[Validator] = [
     Validator(
@@ -45,7 +43,7 @@ AWS_VALIDATORS: list[Validator] = [
 class TestAwsValidator(unittest.IsolatedAsyncioTestCase):
 
     def setUp(self) -> None:
-        pass
+        self.maxDiff = None
 
     def _init_validator(self, uniq_key: str):
         return ValidatorManager.init_db_input_validator(
@@ -71,6 +69,16 @@ class TestAwsValidator(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(SessionFinished):
             validator_manager = await ValidatorManager.load_validator(key)
             await validator_manager.next(REGION_NAME)
+        validator_manager: ValidatorManager = await ValidatorManager.load_validator(key)
+        res = validator_manager.collect()
+        self.assertDictEqual(
+            res['other_args'],
+            {'col_name': 'aws'}
+        )
+        self.assertEqual(
+            decrypt(res['data']['aws_key_id']), AWS_ACCESS_KEY_ID)
+        self.assertEqual(
+            decrypt(res['data']['aws_secret_access_key']), AWS_SECRET_ACCESS_KEY)
 
     async def test_input_invalid(self):
         key = CacheKeys.aws_validator_key('test_input_invalid')

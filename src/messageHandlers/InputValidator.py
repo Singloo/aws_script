@@ -69,7 +69,7 @@ class Validator():
 
     @property
     def value(self):
-        if self._encrypt:
+        if self._encrypt and self._value != None:
             return Crypto.encrypt(self._value)
         return self._value
 
@@ -163,6 +163,8 @@ class ValidatorManager():
             increase current_index
             save to redis
         '''
+        if self.get_session_left_time < 1:
+            return
         await pickle_save(self.uniq_key, self, exp=self.get_session_left_time)
 
     def get_prompt(self):
@@ -170,14 +172,17 @@ class ValidatorManager():
         return validator.prompt
 
     def collect(self):
+        print('[174] collect')
+
         def _extract_value(prev, curr: Validator):
+            print(f'[176] {prev} {curr._attribute_name} {curr.value}')
             return {
                 **prev,
-                [curr._attribute_name]: curr.value
+                curr._attribute_name: curr.value
             }
         return {
             'other_args': self.other_args,
-            'object': list_reduce(self._validators, _extract_value, {})
+            'data': list_reduce(self._validators, _extract_value, {})
         }
 
     def validate_input(self, input: str):
@@ -196,6 +201,8 @@ class ValidatorManager():
             if input is not None:
                 self.validate_input(input)
         finally:
-            self.check_if_continue()
-            await self.save()
+            try:
+                self.check_if_continue()
+            finally:
+                await self.save()
         return self.get_prompt()

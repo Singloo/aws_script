@@ -32,7 +32,7 @@ def list_every(list: list[T], handler: Callable[[T], bool]) -> bool:
     return res
 
 
-def list_reduce(list: list[T], handler: Callable[[Any, Any], bool], initial_value: Any = None) -> Any:
+def list_reduce(list: list[T], handler: Callable[[Any, Any], Any], initial_value: Any = None) -> Any:
     temp_value = initial_value
     for item in list:
         temp_value = handler(temp_value, item)
