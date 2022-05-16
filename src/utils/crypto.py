@@ -5,8 +5,8 @@ f = Fernet(CRYPTO_KEY)
 
 
 def encrypt(msg: str) -> str:
-    return f.encrypt(msg).decode('utf-8')
+    return f.encrypt(msg.encode('utf-8')).decode('utf-8')
 
 
 def decrypt(data: str) -> str:
-    return f.decrypt(bytes(str)).decode('utf-8')
+    return f.decrypt(data.encode('utf-8')).decode('utf-8')
