@@ -2,11 +2,15 @@ from . import AsyncBaseMessageHandler
 from .InputValidator import ValidatorManager, Validator
 from functools import partial
 from src.utils.util import re_strict_match, re_test
+from src.db.redis import CacheKeys
 
 
 class AwsBind(AsyncBaseMessageHandler):
     async def __call__(self, cmds: list[str]):
-        print('bind')
+        uniq_key = CacheKeys.aws_validator_key(self.params.get('user_id'))
+        vm: ValidatorManager = ValidatorManager.init_db_input_validator(
+            AWS_VALIDATORS, uniq_key, 'awsCrediential')
+        return vm.next()
 
 
 class AwsList(AsyncBaseMessageHandler):

@@ -7,11 +7,11 @@ class NoSuchHandler(Exception):
 
 
 class BaseMessageHandler():
-    def __init__(self,params:Any = {}) -> None:
-        self.params = params
+    def __init__(self, params: Any = {}) -> None:
+        self.params: dict = params
 
     def __call__(self, cmds: list[str]):
-        first = cmds[0] 
+        first = cmds[0]
         res = getattr(self, first, None)
         if res is None:
             return self.fallback()
@@ -20,16 +20,17 @@ class BaseMessageHandler():
     def fallback(self):
         raise NoSuchHandler
 
+
 class AsyncBaseMessageHandler():
-    def __init__(self,params:Any = {}) -> None:
-        self.params = params
+    def __init__(self, params: Any = {}) -> None:
+        self.params: dict = params
 
     async def __call__(self, cmds: list[str]):
-        first = cmds[0] 
+        first = cmds[0]
         res = getattr(self, first, None)
         if res is None:
             return await self.fallback()
         return await res(cmds[1:])
-        
+
     async def fallback(self):
         raise NoSuchHandler
