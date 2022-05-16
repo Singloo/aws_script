@@ -2,6 +2,7 @@ from .mongo import Mongo
 from bson.objectid import ObjectId
 from src.types import AwsCrediential
 import src.utils.crypto as Crypto
+from .exceptions import ExceedMaximumNumber
 
 
 class AwsCredientialRepo(Mongo):
@@ -9,8 +10,13 @@ class AwsCredientialRepo(Mongo):
         super().__init__()
         self.col = self.get_collection('awsCrediential')
 
-    def insert(self, doc: AwsCrediential) -> ObjectId:
-        res = self.col.insert_one(doc)
+    def insert(self, doc: AwsCrediential, user_id: str) -> ObjectId:
+        existing = self.col.count_documents({
+            'user_id': ObjectId(user_id)
+        })
+        if existing > 100:
+            raise ExceedMaximumNumber
+        res = self.col.insert_one({**doc, 'user_id': ObjectId(user_id)})
         return res.inserted_id
 
     def find_by_id(self, _id: ObjectId) -> AwsCrediential:
