@@ -12,13 +12,15 @@ from src.utils.util import async_race, timeout, TIME_OUT_MSG
 from src.types import CachedData
 from src.utils.constants import RESERVED_INSTANCE_ID, SENTRY_DSN
 import sentry_sdk
+from sentry_sdk.integrations.sanic import SanicIntegration
 sentry_sdk.init(
     SENTRY_DSN,
 
     # Set traces_sample_rate to 1.0 to capture 100%
     # of transactions for performance monitoring.
     # We recommend adjusting this value in production.
-    traces_sample_rate=1.0
+    traces_sample_rate=1.0,
+    integrations=[SanicIntegration()]
 )
 
 SCHEDULE_TO_STOP_EC2 = True
