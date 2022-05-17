@@ -6,31 +6,61 @@ class NoSuchHandler(Exception):
         super().__init__(*args)
 
 
+class InvalidCammand(Exception):
+    def __init__(self, *args: object) -> None:
+        super().__init__('Invalid cammand', *args)
+
+
 class BaseMessageHandler():
+    params: dict
+    '''
+        params: {
+            user_id: str,
+            origin_input: str,
+            ...other params 
+        }
+    '''
     def __init__(self, params: Any = {}) -> None:
         self.params: dict = params
 
     def __call__(self, cmds: list[str]):
-        first = cmds[0]
-        res = getattr(self, first, None)
-        if res is None:
-            return self.fallback()
-        return res(cmds[1:])
+        try:
+            first = cmds[0]
+            res = getattr(self, first, None)
+            if res is None:
+                return self.fallback(cmds)
+            input = cmds[1:] if len(cmds) > 1 else None
+            return res(input)
+        except TypeError:
+            raise InvalidCammand
 
     def fallback(self):
         raise NoSuchHandler
 
 
 class AsyncBaseMessageHandler():
+    params: dict
+    '''
+        params: {
+            user_id: str,
+            origin_input: str,
+            ...other params 
+        }
+    '''
+
     def __init__(self, params: Any = {}) -> None:
         self.params: dict = params
 
     async def __call__(self, cmds: list[str]):
-        first = cmds[0]
-        res = getattr(self, first, None)
-        if res is None:
-            return await self.fallback()
-        return await res(cmds[1:])
+        try:
+            first = cmds[0]
+            res = getattr(self, first, None)
+            if res is None:
+                return await self.fallback(cmds)
+            input = cmds[1:] if len(cmds) > 1 else None
+            return await res(input)
+        except TypeError:
+            raise InvalidCammand
 
-    async def fallback(self):
+    async def fallback(self, cmds: list[str]):
         raise NoSuchHandler
