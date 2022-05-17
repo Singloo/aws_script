@@ -17,3 +17,5 @@ MONGO_PORT = os.getenv('MONGO_PORT')
 MONGO_DBNAME = os.getenv('MONGO_DBNAME')
 
 CRYPTO_KEY = os.getenv('CRYPTO_KEY')
+
+SENTRY_DSN = os.getenv('SENTRY_DSN')

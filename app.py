@@ -10,8 +10,16 @@ from src.db.redis import json_get, CacheKeys
 from src.schedulers import schedule_to_shut_down_ec2, sched
 from src.utils.util import async_race, timeout, TIME_OUT_MSG
 from src.types import CachedData
-from src.utils.constants import RESERVED_INSTANCE_ID
-from functools import partial
+from src.utils.constants import RESERVED_INSTANCE_ID, SENTRY_DSN
+import sentry_sdk
+sentry_sdk.init(
+    SENTRY_DSN,
+
+    # Set traces_sample_rate to 1.0 to capture 100%
+    # of transactions for performance monitoring.
+    # We recommend adjusting this value in production.
+    traces_sample_rate=1.0
+)
 
 SCHEDULE_TO_STOP_EC2 = True
 
