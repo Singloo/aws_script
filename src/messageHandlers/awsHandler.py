@@ -1,16 +1,25 @@
 from . import AsyncBaseMessageHandler
-from .InputValidator import ValidatorManager, Validator
+from .InputValidator import ValidatorManager, Validator, SessionExpired, ValidatorInvalidAndExceedMaximumTimes, ValidatorInvalidInput, SessionFinished
 from functools import partial
 from src.utils.util import re_strict_match, re_test
 from src.db.redis import CacheKeys
 
 
 class AwsBind(AsyncBaseMessageHandler):
-    async def __call__(self, cmds: list[str]):
-        uniq_key = CacheKeys.aws_validator_key(self.params.get('user_id'))
-        vm: ValidatorManager = ValidatorManager.init_db_input_validator(
-            AWS_VALIDATORS, uniq_key, 'awsCrediential')
-        return vm.next()
+    async def __call__(self, input: str | None = None):
+        try:
+            uniq_key = CacheKeys.aws_validator_key(self.params.get('user_id'))
+            vm: ValidatorManager = ValidatorManager.init_db_input_validator(
+                AWS_VALIDATORS, uniq_key, 'awsCrediential')
+            return await vm.next(input)
+        except SessionFinished:
+            pass
+        except ValidatorInvalidAndExceedMaximumTimes:
+            return 'Invalid input and exceed maximum retry times, please try again.'
+        except ValidatorInvalidInput:
+            return 'Invalid input'
+        except SessionExpired:
+            return 'Sorry, session is expired, please try again.'
 
 
 class AwsList(AsyncBaseMessageHandler):

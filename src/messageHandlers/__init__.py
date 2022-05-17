@@ -28,13 +28,13 @@ class BaseMessageHandler():
             first = cmds[0]
             res = getattr(self, first, None)
             if res is None:
-                return self.fallback(cmds)
+                return self._fallback(cmds)
             input = cmds[1:] if len(cmds) > 1 else None
             return res(input)
         except TypeError:
             raise InvalidCammand
 
-    def fallback(self):
+    def _fallback(self):
         raise NoSuchHandler
 
 
@@ -56,11 +56,11 @@ class AsyncBaseMessageHandler():
             first = cmds[0]
             res = getattr(self, first, None)
             if res is None:
-                return await self.fallback(cmds)
+                return await self._fallback(cmds)
             input = cmds[1:] if len(cmds) > 1 else None
             return await res(input)
         except TypeError:
             raise InvalidCammand
 
-    async def fallback(self, cmds: list[str]):
+    async def _fallback(self, cmds: list[str]):
         raise NoSuchHandler
