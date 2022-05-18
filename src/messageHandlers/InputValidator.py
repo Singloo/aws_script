@@ -1,9 +1,14 @@
-from tkinter import E
 from src.types import ValidatorFunc
 import time
 from src.utils.util import list_every, list_reduce
 from src.db.redis import pickle_get, pickle_save
 import src.utils.crypto as Crypto
+from typing import TypedDict
+
+
+class CollectData(TypedDict):
+    data: dict
+    other_args: dict
 
 
 class SessionExpired(Exception):
@@ -171,11 +176,11 @@ class ValidatorManager():
         validator = self.current_validator
         return validator.prompt
 
-    def collect(self):
+    def collect(self) -> CollectData:
         def _extract_value(prev, curr: Validator):
             return {
                 **prev,
-                curr._attribute_name: curr.value
+                curr._attribute_name: curr.value,
             }
         return {
             'other_args': self.other_args,

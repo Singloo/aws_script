@@ -1,25 +1,57 @@
 from . import AsyncBaseMessageHandler
-from .InputValidator import ValidatorManager, Validator, SessionExpired, ValidatorInvalidAndExceedMaximumTimes, ValidatorInvalidInput, SessionFinished
+from .InputValidator import ValidatorManager, Validator, SessionExpired, ValidatorInvalidAndExceedMaximumTimes, ValidatorInvalidInput, SessionFinished, NoSuchSession
 from functools import partial
 from src.utils.util import re_strict_match, re_test
+import src.utils.crypto as Crypto
 from src.db.redis import CacheKeys
+import aioboto3
+from botocore.exceptions import ClientError
+from src.db.awsCrediential import AwsCredientialRepo
+from src.db.exceptions import ExceedMaximumNumber
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from mypy_boto3_ec2.client import EC2Client
+    from mypy_boto3_ec2.service_resource import EC2ServiceResource, Instance
+else:
+    EC2Client = object
+    EC2ServiceResource = object
+    Instance = object
 
 
 class AwsBind(AsyncBaseMessageHandler):
     async def __call__(self, input: str | None = None):
+        uniq_key = CacheKeys.aws_validator_key(self.params.get('user_id'))
         try:
-            uniq_key = CacheKeys.aws_validator_key(self.params.get('user_id'))
-            vm: ValidatorManager = ValidatorManager.init_db_input_validator(
-                AWS_VALIDATORS, uniq_key, 'awsCrediential')
+            vm: ValidatorManager
+            if input is None:
+                vm = ValidatorManager.init_db_input_validator(
+                    AWS_VALIDATORS, uniq_key, 'awsCrediential')
+            else:
+                vm = ValidatorManager.load_validator(uniq_key)
             return await vm.next(input)
         except SessionFinished:
-            pass
+            vm = ValidatorManager.load_validator(uniq_key)
+            data = vm.collect()['data']
+            col_name = vm.collect()['other_args']['col_name']
+            res = await test_aws_crediential(
+                data['region_name'], Crypto.decrypt(data['aws_access_key_id']), Crypto.decrypt(data['aws_secret_access_key']))
+            if isinstance(res, str):
+                return res
+            AwsCredientialRepo().insert(
+                {**data, 'encrypted': True},
+                self.params.get('user_id')
+            )
+            return 'Success, your credientials are encrypted well in our database'
         except ValidatorInvalidAndExceedMaximumTimes:
             return 'Invalid input and exceed maximum retry times, please try again.'
         except ValidatorInvalidInput:
             return 'Invalid input'
         except SessionExpired:
             return 'Sorry, session is expired, please try again.'
+        except NoSuchSession:
+            return 'No aws bind session, please try again'
+        except ExceedMaximumNumber:
+            return 'Sorry, you cannot bind more AWS crediential(maximum 100)'
 
 
 class AwsList(AsyncBaseMessageHandler):
@@ -77,3 +109,19 @@ AWS_VALIDATORS: list[Validator] = [
         validator=partial(re_strict_match, pattern=region_regex_str)
     ),
 ]
+
+
+async def test_aws_crediential(region_name: str, aws_access_key_id: str, aws_secret_access_key: str):
+    try:
+        session = aioboto3.Session()
+        async with session.resource('ec2',
+                                    region_name=region_name,
+                                    aws_access_key_id=aws_access_key_id,
+                                    aws_secret_access_key=aws_secret_access_key) as ec2:
+            ec2: EC2ServiceResource
+            all_instance = ec2.instances.all()
+            async for item in all_instance.limit(1):
+                pass
+            return True
+    except ClientError as e:
+        return e.response['Error']['Message']
