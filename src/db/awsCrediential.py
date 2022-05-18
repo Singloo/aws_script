@@ -21,7 +21,10 @@ class AwsCredientialRepo(Mongo):
         })
         if existing > 100:
             raise ExceedMaximumNumber
-        res = self.col.insert_one({**doc, 'user_id': ObjectId(user_id)})
+        res = self.col.insert_one(
+            self.add_created_updated_at(
+                {**doc, 'user_id': ObjectId(user_id)})
+        )
         return res.inserted_id
 
     def find_by_id(self, _id: ObjectId) -> AwsCrediential:
