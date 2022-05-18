@@ -3,6 +3,7 @@ from pymongo.database import Database, Collection
 from src.utils.constants import MONGO_DBNAME, MONGO_HOST, MONGO_PASSWORD, MONGO_PORT, MONGO_USERNAME
 from bson.objectid import ObjectId
 from typing_extensions import Self
+from datetime import datetime
 
 
 class Mongo(object):
@@ -23,6 +24,12 @@ class Mongo(object):
         return self.col.delete_one({
             '_id': _id
         })
+
+    def add_created_updated_at(self, doc: dict):
+        return {**doc, 'created_at': datetime.now(), 'updated_at': datetime.now()}
+
+    def add_updated_at(self, doc: dict):
+        return {**doc, 'updated_at': datetime.now()}
 
     def connect(self):
         self._mongoClient = MongoClient(
