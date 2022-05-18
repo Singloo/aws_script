@@ -6,6 +6,11 @@ from .exceptions import ExceedMaximumNumber
 
 
 class AwsCredientialRepo(Mongo):
+    @property
+    @classmethod
+    def instance(cls):
+        pass
+
     def __init__(self):
         super().__init__()
         self.col = self.get_collection('awsCrediential')
