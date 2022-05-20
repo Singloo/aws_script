@@ -23,7 +23,7 @@ class AwsCredientialRepo(Mongo):
             raise ExceedMaximumNumber
         res = self.col.insert_one(
             self.add_created_updated_at(
-                {**doc, 'user_id': ObjectId(user_id)})
+                {**doc, 'user_id': ObjectId(user_id), 'alias': str(existing+1)})
         )
         return res.inserted_id
 
