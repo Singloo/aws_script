@@ -1,9 +1,10 @@
 from src.types import ValidatorFunc
 import time
-from src.utils.util import list_every, list_reduce
+from src.utils.util import list_every
 from src.db.redis import pickle_get, pickle_save
 import src.utils.crypto as Crypto
 from typing import TypedDict
+from functools import reduce
 
 
 class CollectData(TypedDict):
@@ -184,7 +185,7 @@ class ValidatorManager():
             }
         return {
             'other_args': self.other_args,
-            'data': list_reduce(self._validators, _extract_value, {})
+            'data': reduce(_extract_value, self._validators, {})
         }
 
     def validate_input(self, input: str):

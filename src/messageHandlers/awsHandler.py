@@ -8,6 +8,9 @@ import aioboto3
 from botocore.exceptions import ClientError
 from src.db.awsCrediential import AwsCredientialRepo
 from src.db.exceptions import ExceedMaximumNumber
+from src.types import AwsCrediential
+from src.utils.util import desensitize_data
+import src.utils.crypto as Crypto
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from mypy_boto3_ec2.client import EC2Client
@@ -37,11 +40,11 @@ class AwsBind(AsyncBaseMessageHandler):
                 data['region_name'], Crypto.decrypt(data['aws_access_key_id']), Crypto.decrypt(data['aws_secret_access_key']))
             if isinstance(res, str):
                 return res
-            AwsCredientialRepo().insert(
+            object_id, alias = AwsCredientialRepo().insert(
                 {**data, 'encrypted': True},
                 self.params.get('user_id')
             )
-            return 'Success, your credientials are encrypted well in our database'
+            return f'Success, your credientials are encrypted well in our database.\n [ID]: {object_id} \n[Default Alias]:{alias}'
         except ValidatorInvalidAndExceedMaximumTimes:
             return 'Invalid input and exceed maximum retry times, please try again.'
         except ValidatorInvalidInput:
@@ -53,10 +56,21 @@ class AwsBind(AsyncBaseMessageHandler):
         except ExceedMaximumNumber:
             return 'Sorry, you cannot bind more AWS crediential(maximum 100)'
 
+AWS_LIST_HEADER = '      [id]         [AWS access key id]        [Aws secret access key id]       [Region name]      [Alias]       [Created at]'
 
 class AwsList(AsyncBaseMessageHandler):
+    def __build_resp(self, instances: list[AwsCrediential]) -> str:
+        def _single_ins(data: tuple[int, AwsCrediential]):
+            idx, ins = data
+            return f'{idx} {ins["_id"]} {desensitize_data(Crypto.decrypt(ins["aws_access_key_id"]), 4, 4)} {desensitize_data(Crypto.decrypt(ins["aws_secret_access_key"]), 5, 5)} {ins["region_name"]} {ins["alias"]} {ins["created_at"]}'
+        return '\n'.join(map(_single_ins, enumerate(instances)))
+
     async def __call__(self, cmds: list[str]):
-        print('list', cmds)
+        user_id = self.params['user_id']
+        inss = AwsCredientialRepo().find_all(user_id)
+        if len(inss) == 0:
+            return 'No result\nLets start by [aws bind]'
+        return ''+self.__build_resp(inss)
 
 
 class AwsRm(AsyncBaseMessageHandler):
