@@ -47,3 +47,18 @@ def re_strict_match(string: str, pattern: Pattern[str],):
 def re_test(string: str, pattern: Pattern[str],):
     res = re.search(pattern, string)
     return res != None
+
+
+def desensitize_data(string: str, max_star_count: None | int = None, max_visvible_char: None | int = None):
+    str_len = len(string)
+    if str_len == 2:
+        return string[0]+'*'
+    visible_count = min(4, round(str_len * 0.3))
+    if max_visvible_char != None and max_visvible_char < visible_count:
+        visible_count = max_visvible_char
+        
+    star_count = str_len-visible_count*2
+    if max_star_count != None and max_star_count < star_count:
+        star_count = max_star_count
+    stars = '*'*star_count
+    return string[:visible_count] + stars + string[str_len-visible_count:]
