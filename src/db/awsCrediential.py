@@ -5,6 +5,16 @@ import src.utils.crypto as Crypto
 from .exceptions import ExceedMaximumNumber
 
 
+def _try_decrypt(data: AwsCrediential) -> AwsCrediential:
+    if data['encrypted'] == False:
+        return data
+    return {
+        **data,
+        'aws_access_key_id': Crypto.decrypt(data['aws_access_key_id']),
+        'aws_secret_access_key': Crypto.decrypt(data['aws_secret_access_key'])
+    }
+
+
 class AwsCredientialRepo(Mongo):
     @property
     @classmethod
@@ -19,7 +29,7 @@ class AwsCredientialRepo(Mongo):
         cursor = self.col.find({'user_id': ObjectId(user_id)}).sort({
             'created_at': -1
         })
-        return list(cursor)
+        return map(_try_decrypt, list(cursor))
 
     def insert(self, doc: AwsCrediential, user_id: str) -> tuple[ObjectId, str]:
         existing = self.col.count_documents({
@@ -40,10 +50,11 @@ class AwsCredientialRepo(Mongo):
         })
         if res is None:
             return None
-        if res['encrypted']:
-            return {
-                **res,
-                'aws_access_key_id': Crypto.decrypt(res['aws_access_key_id']),
-                'aws_secret_access_key': Crypto.decrypt(res['aws_secret_access_key'])
-            }
-        return res
+        return _try_decrypt(res)
+
+    def find_by_alias(self, user_id: str, alias: str):
+        res: AwsCrediential = self.col.find_one({
+            'user_id': ObjectId(user_id),
+            'alias': alias
+        })
+        return None if res is None else _try_decrypt(res)
