@@ -5,11 +5,11 @@ from src.messageHandlers.ec2Handler import stop_ec2
 from src.logger import logger
 import asyncio
 from src.utils.constants import MONGO_DBNAME
-from src.db.mongo import mongo
+from src.db.mongo import Mongo
 
 jobstores = {
     'redis':  MongoDBJobStore(
-        client=mongo._mongoClient, database=MONGO_DBNAME, collection='schedules')
+        client=Mongo()._mongoClient, database=MONGO_DBNAME, collection='schedules')
 }
 sched = BackgroundScheduler(jobstores=jobstores, timezone=utc)
 

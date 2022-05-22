@@ -7,7 +7,7 @@ from typing import List, TYPE_CHECKING, Tuple
 from src.types import CachedData
 import aioboto3
 from src.utils.constants import REGION_NAME, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, SS_PORT, SS_STR
-from . import BaseMessageHandler
+from . import AsyncBaseMessageHandler
 
 if TYPE_CHECKING:
     from mypy_boto3_ec2.client import EC2Client
@@ -186,50 +186,76 @@ async def ec2_action_handler(tokens: List[str], user_id: str) -> Tuple[bool, str
         logger.error(e)
         return False, 'An aws error encountered'
 
-class Ec2Bind(BaseMessageHandler):
+
+class Ec2Bind(AsyncBaseMessageHandler):
     def __call__(self, cmds: list[str]):
         print('ec2 bind')
 
 
-class Ec2List(BaseMessageHandler):
-    def __call__(self, cmds: list[str]):
+class Ec2List(AsyncBaseMessageHandler):
+    async def __call__(self, cmds: list[str]):
         print('ec2 list')
 
 
-class Ec2Rm(BaseMessageHandler):
-    def __call__(self, cmds: list[str]):
+class Ec2Rm(AsyncBaseMessageHandler):
+    async def __call__(self, cmds: list[str]):
         print('ec2 rm', cmds)
 
 
-class Ec2Start(BaseMessageHandler):
-    def __call__(self, cmds: list[str]):
+class Ec2Start(AsyncBaseMessageHandler):
+    async def __call__(self, cmds: list[str]):
         print('ec2 start', cmds)
 
-class Ec2Status(BaseMessageHandler):
-    def __call__(self, cmds: list[str]):
+
+class Ec2Status(AsyncBaseMessageHandler):
+    async def __call__(self, cmds: list[str]):
         print('ec2 status', cmds)
 
-class Ec2Stop(BaseMessageHandler):
-    def __call__(self, cmds: list[str]):
+
+class Ec2Stop(AsyncBaseMessageHandler):
+    async def __call__(self, cmds: list[str]):
         print('ec2 stop', cmds)
 
 
-class Ec2Alias(BaseMessageHandler):
-    def __call__(self, cmds: list[str]):
+class Ec2Alias(AsyncBaseMessageHandler):
+    async def __call__(self, cmds: list[str]):
         print('ec2 alias', cmds)
 
 
-class Ec2Cron(BaseMessageHandler):
-    def __call__(self, cmds: list[str]):
+class Ec2Cron(AsyncBaseMessageHandler):
+    async def __call__(self, cmds: list[str]):
         print('ec2 cron', cmds)
 
 
-class Ec2Handler(BaseMessageHandler):
-    bind = Ec2Bind
-    rm = Ec2Rm
-    start = Ec2Start
-    status = Ec2Status
-    state = Ec2Status
-    stop = Ec2Stop
-    alias = Ec2Alias
-    cron = Ec2Cron
+class Ec2Handler(AsyncBaseMessageHandler):
+    @property
+    def bind(self):
+        return Ec2Bind(self.params)
+
+    @property
+    def rm(self):
+        return Ec2Rm(self.params)
+
+    @property
+    def start(self):
+        return Ec2Start(self.params)
+
+    @property
+    def status(self):
+        return Ec2Status(self.params)
+
+    @property
+    def state(self):
+        return Ec2Status(self.params)
+
+    @property
+    def stop(self):
+        return Ec2Stop(self.params)
+
+    @property
+    def alias(self):
+        return Ec2Alias(self.params)
+
+    @property
+    def cron(self):
+        return Ec2Cron(self.params)
