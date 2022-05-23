@@ -8,6 +8,9 @@ from src.types import CachedData
 import aioboto3
 from src.utils.constants import REGION_NAME, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, SS_PORT, SS_STR
 from . import AsyncBaseMessageHandler
+from .InputValidator import ValidatorManager, Validator, SessionExpired, ValidatorInvalidAndExceedMaximumTimes, ValidatorInvalidInput, SessionFinished, NoSuchSession
+from .exceptions import InvalidCmd
+from src.db.awsCrediential import AwsCredientialRepo
 
 if TYPE_CHECKING:
     from mypy_boto3_ec2.client import EC2Client
@@ -186,10 +189,53 @@ async def ec2_action_handler(tokens: List[str], user_id: str) -> Tuple[bool, str
         logger.error(e)
         return False, 'An aws error encountered'
 
+EC2_VALIDATORS = [
+
+]
+
 
 class Ec2Bind(AsyncBaseMessageHandler):
-    def __call__(self, cmds: list[str]):
-        print('ec2 bind')
+    async def __call__(self, cmds: list[str]):
+        uniq_key = CacheKeys.ec2_validator_key(self.params.get('user_id'))
+        try:
+            vm: ValidatorManager
+            vm = ValidatorManager.load_validator(uniq_key)
+            if vm is None:
+                if len(cmds) != 1:
+                    raise InvalidCmd(
+                        'ec2 bind: invalid input, expect id or alias provided')
+                identifier = cmds[0]
+                ins = AwsCredientialRepo().find_by_vague_id(identifier)
+                if ins is None:
+                    raise InvalidCmd(
+                        'ec2 bind: invalid input, no such aws crediential')
+                vm = ValidatorManager.init_db_input_validator(
+                    EC2_VALIDATORS, uniq_key, col_name='ec2Instance', aws_crediential_id=ins['_id'])
+            
+        except SessionFinished:
+            pass
+            # vm = ValidatorManager.load_validator(uniq_key)
+            # data = vm.collect()['data']
+            # col_name = vm.collect()['other_args']['col_name']
+            # res = await test_aws_crediential(
+            #     data['region_name'], Crypto.decrypt(data['aws_access_key_id']), Crypto.decrypt(data['aws_secret_access_key']))
+            # if isinstance(res, str):
+            #     return res
+            # object_id, alias = AwsCredientialRepo().insert(
+            #     {**data, 'encrypted': True},
+            #     self.params.get('user_id')
+            # )
+            # return f'Success, your credientials are encrypted well in our database.\n [ID]: {object_id} \n[Default Alias]:{alias}'
+        except ValidatorInvalidAndExceedMaximumTimes:
+            return 'Invalid input and exceed maximum retry times, please try again.'
+        except ValidatorInvalidInput:
+            return 'Invalid input'
+        except SessionExpired:
+            return 'Sorry, session is expired, please try again.'
+        except NoSuchSession:
+            return 'No aws bind session, please try again'
+        except ExceedMaximumNumber:
+            return 'Sorry, you cannot bind more AWS crediential(maximum 100)'
 
 
 class Ec2List(AsyncBaseMessageHandler):
