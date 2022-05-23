@@ -58,3 +58,11 @@ class AwsCredientialRepo(Mongo):
             'alias': alias
         })
         return None if res is None else _try_decrypt(res)
+
+    def find_by_vague_id(self, identifier:str):
+        is_object_id = ObjectId.is_valid(identifier)
+        find_instance = self.find_by_id if is_object_id else self.find_by_alias
+        args = (ObjectId(identifier),) if is_object_id else (
+            self.params['user_id'], identifier)
+        res = find_instance(*args)
+        return res
