@@ -194,6 +194,10 @@ async def ec2_action_handler(tokens: List[str], user_id: str) -> Tuple[bool, str
 
 
 def _try_to_decrypt_outline_token(token: str):
+    '''
+    return False
+    or [crypto method, password]
+    '''
     match = re.search(r'ss:\/\/([a-zA-Z0-9]{45,}=?)@', token)
     if match is None:
         return False
