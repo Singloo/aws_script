@@ -11,6 +11,9 @@ from . import AsyncBaseMessageHandler
 from .InputValidator import ValidatorManager, Validator, SessionExpired, ValidatorInvalidAndExceedMaximumTimes, ValidatorInvalidInput, SessionFinished, NoSuchSession
 from .exceptions import InvalidCmd
 from src.db.awsCrediential import AwsCredientialRepo
+from src.utils.util import re_strict_match
+from functools import partial
+import base64
 
 if TYPE_CHECKING:
     from mypy_boto3_ec2.client import EC2Client
@@ -189,8 +192,46 @@ async def ec2_action_handler(tokens: List[str], user_id: str) -> Tuple[bool, str
         logger.error(e)
         return False, 'An aws error encountered'
 
-EC2_VALIDATORS = [
 
+def _try_to_decrypt_outline_token(token: str):
+    match = re.search(r'ss:\/\/([a-zA-Z0-9]{45,}=?)@', token)
+    if match is None:
+        return False
+    str1 = match.groups()[0]
+    try:
+        decoded = base64.b64decode(str1).decode('utf8').split(':')
+        if len(decoded) != 2:
+            return False
+        return decoded
+    except:
+        return False
+
+
+def validate_outline(input: str):
+    if input.strip().lower() == 'skip':
+        return True
+    token = input.split('?')[0]
+    matched = re_strict_match(
+        token, r'^ss:\/\/[a-zA-Z0-9]{45,}={1,2}@([0-9]{1,3}\.?){4}:[0-9]{2,5}$')
+    if not matched:
+        return False
+    res = _try_to_decrypt_outline_token(token)
+    return res is not False
+
+
+EC2_VALIDATORS = [
+    Validator(
+        prompt='Please input ec2 instance id, e.g. i-03868cxxxxfec037',
+        invalid_prompt='Invalid instance id',
+        attribute_name='instance_id',
+        validator=partial(re_strict_match, pattern=r'^i-[a-z0-9]{17,20}$')
+    ),
+    Validator(
+        prompt='Please input outline token(optional), if you want to skip this step, please input: skip',
+        invalid_prompt='Invalid outline token',
+        attribute_name='outline_token',
+        validator=validate_outline
+    )
 ]
 
 
@@ -211,7 +252,7 @@ class Ec2Bind(AsyncBaseMessageHandler):
                         'ec2 bind: invalid input, no such aws crediential')
                 vm = ValidatorManager.init_db_input_validator(
                     EC2_VALIDATORS, uniq_key, col_name='ec2Instance', aws_crediential_id=ins['_id'])
-            
+
         except SessionFinished:
             pass
             # vm = ValidatorManager.load_validator(uniq_key)
