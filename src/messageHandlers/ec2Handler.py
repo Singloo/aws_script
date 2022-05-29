@@ -8,6 +8,7 @@ import asyncio
 from typing import List, TYPE_CHECKING, Tuple
 from src.types import CachedData
 import aioboto3
+from src.types.type import Ec2Instance
 from src.utils.constants import REGION_NAME, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, SS_PORT, SS_STR
 from . import AsyncBaseMessageHandler
 from .InputValidator import ValidatorManager, Validator, SessionExpired, ValidatorInvalidAndExceedMaximumTimes, ValidatorInvalidInput, SessionFinished, NoSuchSession
@@ -340,7 +341,19 @@ class Ec2Stop(AsyncBaseMessageHandler):
 
 class Ec2Alias(AsyncBaseMessageHandler):
     async def __call__(self, cmds: list[str]):
-        print('ec2 alias', cmds)
+        if len(cmds) != 2:
+            raise InvalidCmd(
+                'ec2 alias: invalid input, expect <id | alias > <new alias>')
+        identifier, newAlias = cmds
+        repo = Ec2InstanceRepo()
+        ins: Ec2Instance = repo.find_by_vague_id(identifier)
+        if ins is None:
+            return 'No such instance'
+        success = repo.update_alias(
+            ins['_id'], self.params['user_id'], newAlias)
+        if success:
+            return 'Success'
+        return f'Alias: {newAlias} already existed'
 
 
 class Ec2Cron(AsyncBaseMessageHandler):

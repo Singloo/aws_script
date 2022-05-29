@@ -36,3 +36,13 @@ class Ec2InstanceRepo(Mongo):
     def find_by_alias(self, user_id: str, alias: str):
         res: Ec2Instance = super().find_by_alias(user_id, alias)
         return ensure_decrypted(res, ['instance_id']) if res != None else None
+
+    def update_alias(self, _id: ObjectId, user_id: str, newAlias: str):
+        res = self.col.find_one({
+            'user_id': ObjectId(user_id),
+            'alias': newAlias
+        })
+        if res != None:
+            return False
+        self.col.update_one({'_id': _id}, {'alias': newAlias})
+        return True
