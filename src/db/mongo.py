@@ -42,3 +42,27 @@ class Mongo(object):
 
     def get_collection(self, name: str) -> Collection:
         return self.db.get_collection(name)
+
+
+    def find_by_id(self, _id: ObjectId):
+        if not isinstance(_id, ObjectId):
+            _id = ObjectId(_id)
+        res = self.col.find_one({
+            '_id': _id
+        })
+        return res
+
+    def find_by_alias(self, user_id: str, alias: str):
+        res = self.col.find_one({
+            'user_id': ObjectId(user_id),
+            'alias': alias
+        })
+        return res
+
+    def find_by_vague_id(self, identifier: str):
+        is_object_id = ObjectId.is_valid(identifier)
+        find_instance = self.find_by_id if is_object_id else self.find_by_alias
+        args = (ObjectId(identifier),) if is_object_id else (
+            self.params['user_id'], identifier)
+        res = find_instance(*args)
+        return res

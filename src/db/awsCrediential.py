@@ -1,10 +1,11 @@
 from .mongo import Mongo
 from bson.objectid import ObjectId
 from src.types import AwsCrediential
-import src.utils.crypto as Crypto
 from .exceptions import ExceedMaximumNumber
-from .helper import ensure_decrypted
+from .helper import ensure_decrypted, is_int
 from functools import partial
+
+
 class AwsCredientialRepo(Mongo):
     @property
     @classmethod
@@ -27,7 +28,15 @@ class AwsCredientialRepo(Mongo):
         })
         if existing > 100:
             raise ExceedMaximumNumber
-        alias = str(existing+1)
+        alias: str = '1'
+        if existing > 0:
+            cursor = self.col.find().sort({
+                'alias': -1
+            })
+            for doc in cursor:
+                if is_int(doc['alias']):
+                    alias = str(int(doc['alias']) + 1)
+                    break
         res = self.col.insert_one(
             self.add_created_updated_at(
                 {**doc, 'user_id': ObjectId(user_id), 'alias': alias})
@@ -35,26 +44,9 @@ class AwsCredientialRepo(Mongo):
         return res.inserted_id, alias
 
     def find_by_id(self, _id: ObjectId) -> AwsCrediential:
-        if not isinstance(_id, ObjectId):
-            _id = ObjectId(_id)
-        res: AwsCrediential = self.col.find_one({
-            '_id': _id
-        })
-        if res is None:
-            return None
-        return ensure_decrypted(res, ['aws_access_key_id', 'aws_secret_access_key'])
+        res = super().find_by_id(_id)
+        return ensure_decrypted(res, ['aws_access_key_id', 'aws_secret_access_key']) if res != None else None
 
     def find_by_alias(self, user_id: str, alias: str):
-        res: AwsCrediential = self.col.find_one({
-            'user_id': ObjectId(user_id),
-            'alias': alias
-        })
-        return None if res is None else ensure_decrypted(res, ['aws_access_key_id', 'aws_secret_access_key'])
-
-    def find_by_vague_id(self, identifier: str):
-        is_object_id = ObjectId.is_valid(identifier)
-        find_instance = self.find_by_id if is_object_id else self.find_by_alias
-        args = (ObjectId(identifier),) if is_object_id else (
-            self.params['user_id'], identifier)
-        res = find_instance(*args)
-        return res
+        res: AwsCrediential = super().find_by_alias(user_id, alias)
+        return ensure_decrypted(res, ['aws_access_key_id', 'aws_secret_access_key']) if res != None else None
