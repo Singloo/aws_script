@@ -1,7 +1,9 @@
+import math
 import re
 from src.logger import logger
 from botocore.exceptions import ClientError
 from src.db.redis import json_save, json_get, CacheKeys
+from src.db.exceptions import ExceedMaximumNumber
 import asyncio
 from typing import List, TYPE_CHECKING, Tuple
 from src.types import CachedData
@@ -11,9 +13,11 @@ from . import AsyncBaseMessageHandler
 from .InputValidator import ValidatorManager, Validator, SessionExpired, ValidatorInvalidAndExceedMaximumTimes, ValidatorInvalidInput, SessionFinished, NoSuchSession
 from .exceptions import InvalidCmd
 from src.db.awsCrediential import AwsCredientialRepo
+from src.db.ec2Instance import Ec2InstanceRepo
 from src.utils.util import re_strict_match
 from functools import partial
 import base64
+from .helper import test_aws_resource
 
 if TYPE_CHECKING:
     from mypy_boto3_ec2.client import EC2Client
@@ -228,7 +232,8 @@ EC2_VALIDATORS = [
         prompt='Please input ec2 instance id, e.g. i-03868cxxxxfec037',
         invalid_prompt='Invalid instance id',
         attribute_name='instance_id',
-        validator=partial(re_strict_match, pattern=r'^i-[a-z0-9]{17,20}$')
+        validator=partial(re_strict_match, pattern=r'^i-[a-z0-9]{17,20}$'),
+        encrypt=True
     ),
     Validator(
         prompt='Please input outline token(optional), if you want to skip this step, please input: skip',
@@ -240,6 +245,19 @@ EC2_VALIDATORS = [
 
 
 class Ec2Bind(AsyncBaseMessageHandler):
+    def __transform_outline_token(self, token: str):
+        if token.lower().strip() == 'skip':
+            return {
+                'outline_token': None,
+                'outline_port': None,
+            }
+        token = token.split('?')[0]
+        match = re.search(r':(\d{4,5})\??', token)
+        return {
+            'outline_token': token,
+            'outline_port': None if match is None else match.groups()[0]
+        }
+
     async def __call__(self, cmds: list[str]):
         uniq_key = CacheKeys.ec2_validator_key(self.params.get('user_id'))
         try:
@@ -256,21 +274,25 @@ class Ec2Bind(AsyncBaseMessageHandler):
                         'ec2 bind: invalid input, no such aws crediential')
                 vm = ValidatorManager.init_db_input_validator(
                     EC2_VALIDATORS, uniq_key, col_name='ec2Instance', aws_crediential_id=ins['_id'])
+                return vm.next()
+            return vm.next(cmds[0])
 
         except SessionFinished:
-            pass
-            # vm = ValidatorManager.load_validator(uniq_key)
-            # data = vm.collect()['data']
-            # col_name = vm.collect()['other_args']['col_name']
-            # res = await test_aws_crediential(
-            #     data['region_name'], Crypto.decrypt(data['aws_access_key_id']), Crypto.decrypt(data['aws_secret_access_key']))
-            # if isinstance(res, str):
-            #     return res
-            # object_id, alias = AwsCredientialRepo().insert(
-            #     {**data, 'encrypted': True},
-            #     self.params.get('user_id')
-            # )
-            # return f'Success, your credientials are encrypted well in our database.\n [ID]: {object_id} \n[Default Alias]:{alias}'
+            vm = ValidatorManager.load_validator(uniq_key)
+            data = vm.collect()['data']
+            aws_crediential_id = vm.collect(
+            )['other_args']['aws_crediential_id']
+            aws_crediential_ins = AwsCredientialRepo().find_by_id(aws_crediential_id)
+            res = await test_aws_resource(
+                aws_crediential_ins['region_name'], aws_crediential_ins['aws_access_key_id'], aws_crediential_ins['aws_secret_access_key'], instance_id=data['instance_id'])
+            if isinstance(res, str):
+                return res
+            object_id, alias = Ec2InstanceRepo().insert(
+                {**data, **self.__transform_outline_token(
+                    data['outline_token']), 'encrypted': True},
+                self.params.get('user_id')
+            )
+            return f'Success, your credientials are encrypted well in our database.\n [ID]: {object_id} \n[Default Alias]:{alias}'
         except ValidatorInvalidAndExceedMaximumTimes:
             return 'Invalid input and exceed maximum retry times, please try again.'
         except ValidatorInvalidInput:

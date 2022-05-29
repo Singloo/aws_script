@@ -94,6 +94,7 @@ class Validator():
     @value.setter
     def value(self, newValue: str):
         self._times += 1
+        newValue = newValue.strip()
         try:
             if not isinstance(newValue, str):
                 raise ValidatorInvalidInput

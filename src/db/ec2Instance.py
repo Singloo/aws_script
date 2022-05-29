@@ -15,5 +15,7 @@ class Ec2InstanceRepo(Mongo):
         })
         if existing > 100:
             raise ExceedMaximumNumber
-        res = self.col.insert_one({**doc, 'user_id': ObjectId(user_id)})
+        alias = str(existing+1)
+        res = self.col.insert_one(
+            {**doc, 'user_id': ObjectId(user_id), 'alias': alias, 'default': alias == 1})
         return res.inserted_id

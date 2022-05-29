@@ -43,8 +43,8 @@ class AwsCrediential(MongoMetadata):
 
 
 class Ec2Instance(MongoMetadata):
-    outline_token: str
-    outline_port: str
+    outline_token: str | None
+    outline_port: str | None
     instance_id: str
     alias: str
     default: bool
