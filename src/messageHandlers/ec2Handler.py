@@ -312,7 +312,15 @@ class Ec2List(AsyncBaseMessageHandler):
 
 class Ec2Rm(AsyncBaseMessageHandler):
     async def __call__(self, cmds: list[str]):
-        print('ec2 rm', cmds)
+        if len(cmds) != 1:
+            raise InvalidCmd('ec2 rm: invalid input, expect id or alias')
+        identifier = cmds[0]
+        repo = Ec2InstanceRepo()
+        ins = repo.find_by_vague_id(identifier)
+        if ins is None:
+            return 'No such instance'
+        repo.delete_from_id(ins['_id'])
+        return f'Success, instance: {identifier} has been removed.'
 
 
 class Ec2Start(AsyncBaseMessageHandler):
