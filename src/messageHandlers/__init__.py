@@ -15,7 +15,7 @@ class BaseMessageHandler():
     params: dict
     '''
         params: {
-            user_id: str,
+            user_id: ObjectId,
             origin_input: str,
             ...other params 
         }
@@ -42,7 +42,7 @@ class AsyncBaseMessageHandler():
     params: dict
     '''
         params: {
-            user_id: str,
+            user_id: ObjectId,
             origin_input: str,
             ...other params 
         }

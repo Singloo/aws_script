@@ -43,7 +43,6 @@ class Mongo(object):
     def get_collection(self, name: str) -> Collection:
         return self.db.get_collection(name)
 
-
     def find_by_id(self, _id: ObjectId):
         if not isinstance(_id, ObjectId):
             _id = ObjectId(_id)
@@ -52,9 +51,9 @@ class Mongo(object):
         })
         return res
 
-    def find_by_alias(self, user_id: str, alias: str):
+    def find_by_alias(self, user_id: ObjectId, alias: str):
         res = self.col.find_one({
-            'user_id': ObjectId(user_id),
+            'user_id': user_id,
             'alias': alias
         })
         return res

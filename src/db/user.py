@@ -14,13 +14,13 @@ class UserRepo(Mongo):
             {**self.add_created_updated_at(doc), 'activated_at': datetime.now()})
         return res.inserted_id
 
-    def find_by_wechat_id(self, wechat_id: str) -> User:
+    def find_by_wechat_id(self, wechat_id: str) -> ObjectId:
         doc = {
             'wechat_id': wechat_id
         }
         res = self.col.find_one(doc)
         if res is None:
-            self.insert(doc)
+            return self.insert(doc)
         else:
-            self.col.update_one(doc, {'activated_at': datetime.now()})
-        return res
+           self.col.update_one(doc, {'activated_at': datetime.now()})
+        return res['_id']

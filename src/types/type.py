@@ -1,6 +1,7 @@
 from datetime import date
-from typing import TypedDict, Callable
+from typing import TypedDict, Callable, Optional
 from bson.objectid import ObjectId
+from enum import Enum
 
 
 class CachedData(TypedDict):
@@ -55,6 +56,7 @@ class Ec2Instance(MongoMetadata):
 
 class User(MongoMetadata):
     wechat_id: str
+    activated_at: date
 
 
 class Ec2Status(MongoMetadata):
@@ -64,10 +66,17 @@ class Ec2Status(MongoMetadata):
     last_modified_by: ObjectId
 
 
+class Ec2OperationLogStatus(Enum):
+    PENDING = 'pending'
+    DONE = 'done'
+    FAILED = 'failed'
+
+
 class Ec2OperationLog(MongoMetadata):
     ec2_id: ObjectId
     command: str
     triggered_by: ObjectId
     success: bool
     started_at: date
-    finished_at: date
+    finished_at: date | None
+    status: Ec2OperationLogStatus

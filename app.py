@@ -13,6 +13,7 @@ from src.types import CachedData
 from src.utils.constants import RESERVED_INSTANCE_ID, SENTRY_DSN
 import sentry_sdk
 from sentry_sdk.integrations.sanic import SanicIntegration
+from src.db.user import UserRepo
 sentry_sdk.init(
     SENTRY_DSN,
 
@@ -69,6 +70,8 @@ async def main_post(request: Request) -> HTTPResponse:
     if isinstance(recMsg, receive.Msg) and recMsg.MsgType == 'text':
         toUser = recMsg.FromUserName
         fromUser = recMsg.ToUserName
+        userRepo = UserRepo()
+        userId = userRepo.find_by_wechat_id(toUser)
         content = await message_handler(
             recMsg.Content, recMsg.FromUserName, cached_data)
         logger.info(f'[{recMsg.FromUserName}] reply ready')

@@ -16,15 +16,15 @@ class AwsCredientialRepo(Mongo):
         super().__init__()
         self.col = self.get_collection('awsCrediential')
 
-    def find_all(self, user_id: str) -> list[AwsCrediential]:
-        cursor = self.col.find({'user_id': ObjectId(user_id)}).sort({
+    def find_all(self, user_id: ObjectId) -> list[AwsCrediential]:
+        cursor = self.col.find({'user_id': user_id}).sort({
             'created_at': -1
         })
         return map(partial(ensure_decrypted, keys_to_decrypt=['aws_access_key_id', 'aws_secret_access_key']), list(cursor))
 
-    def insert(self, doc: AwsCrediential, user_id: str) -> tuple[ObjectId, str]:
+    def insert(self, doc: AwsCrediential, user_id: ObjectId) -> tuple[ObjectId, str]:
         existing = self.col.count_documents({
-            'user_id': ObjectId(user_id)
+            'user_id': user_id
         })
         if existing > 100:
             raise ExceedMaximumNumber
@@ -39,7 +39,7 @@ class AwsCredientialRepo(Mongo):
                     break
         res = self.col.insert_one(
             self.add_created_updated_at(
-                {**doc, 'user_id': ObjectId(user_id), 'alias': alias})
+                {**doc, 'user_id': user_id, 'alias': alias})
         )
         return res.inserted_id, alias
 
@@ -47,6 +47,6 @@ class AwsCredientialRepo(Mongo):
         res = super().find_by_id(_id)
         return ensure_decrypted(res, ['aws_access_key_id', 'aws_secret_access_key']) if res != None else None
 
-    def find_by_alias(self, user_id: str, alias: str):
+    def find_by_alias(self, user_id: ObjectId, alias: str):
         res: AwsCrediential = super().find_by_alias(user_id, alias)
         return ensure_decrypted(res, ['aws_access_key_id', 'aws_secret_access_key']) if res != None else None
