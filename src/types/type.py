@@ -63,13 +63,15 @@ class Ec2Status(MongoMetadata):
     ec2_id: ObjectId
     status: str
     ip: str
-    last_modified_by: ObjectId
+    modified_by: ObjectId
+    last_command: str
 
 
 class Ec2OperationLogStatus(Enum):
     PENDING = 'pending'
     DONE = 'done'
     FAILED = 'failed'
+    EXCEED_MAX_RUNTIME = 'exceed_max_runtime'
 
 
 class Ec2OperationLog(MongoMetadata):
