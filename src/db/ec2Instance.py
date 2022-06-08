@@ -33,7 +33,7 @@ class Ec2InstanceRepo(Mongo):
         res = super().find_by_id(_id)
         return ensure_decrypted(res, ['instance_id']) if res != None else None
 
-    def find_by_alias(self,user_id: ObjectId, alias: str):
+    def find_by_alias(self, user_id: ObjectId, alias: str):
         res: Ec2Instance = super().find_by_alias(user_id, alias)
         return ensure_decrypted(res, ['instance_id']) if res != None else None
 
@@ -46,3 +46,8 @@ class Ec2InstanceRepo(Mongo):
             return False
         self.col.update_one({'_id': _id}, {'alias': newAlias})
         return True
+
+    def get_default(self):
+        return self.col.find_one({
+            'default': True
+        })
