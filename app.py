@@ -55,11 +55,6 @@ async def message_handler(msg: str, user_id: str, data: CachedData | None = None
     return 'We dont have service ready for you'
 
 
-async def strem_response(response: ResponseStream, msgs: list[str]):
-    for msg in msgs:
-        await response.write(msg)
-
-
 @app.post('/wx')
 async def main_post(request: Request) -> HTTPResponse:
     recMsg = receive.parse_xml(request.body)
