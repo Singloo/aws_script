@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import datetime
 from typing import TypedDict, Callable, Optional
 from bson.objectid import ObjectId
 from enum import Enum
@@ -30,8 +30,8 @@ class Validator(TypedDict):
 
 class MongoMetadata(TypedDict):
     _id: ObjectId
-    created_at: date
-    updated_at: date
+    created_at: datetime
+    updated_at: datetime
 
 
 class AwsCrediential(MongoMetadata):
@@ -56,7 +56,7 @@ class Ec2Instance(MongoMetadata):
 
 class User(MongoMetadata):
     wechat_id: str
-    activated_at: date
+    activated_at: datetime
 
 
 class Ec2Status(MongoMetadata):
@@ -79,6 +79,6 @@ class Ec2OperationLog(MongoMetadata):
     command: str
     triggered_by: ObjectId
     success: bool
-    started_at: date
-    finished_at: date | None
+    started_at: datetime
+    finished_at: datetime | None
     status: Ec2OperationLogStatus
