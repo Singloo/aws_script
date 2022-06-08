@@ -20,6 +20,7 @@ class BaseMessageHandler():
             ...other params 
         }
     '''
+
     def __init__(self, params: Any = {}) -> None:
         self.params: dict = params
 
@@ -64,3 +65,7 @@ class AsyncBaseMessageHandler():
 
     async def _fallback(self, cmds: list[str]):
         raise NoSuchHandler
+
+    @property
+    def user_id(self):
+        return self.params['user_id']
