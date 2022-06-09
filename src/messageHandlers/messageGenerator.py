@@ -39,3 +39,12 @@ class MessageGenerator():
     def invalid_cmd(self, cmd: str, expected_input: str):
         msg = f'{cmd}: invalid input, expect {expected_input}'
         return self._append_new_msg(msg)
+
+    def same_cmd_is_running(self, cmd: str, started_at: datetime):
+        return self._append_new_msg(f'A same command: {cmd} has started at: {started_at}, please check it out later')
+
+    def invalid_status_for_cmd(self, cmd: str, expected_status: str, current_status: str):
+        return self._append_new_msg(f'Command: {cmd} expect instance status: {expected_status} but got: {current_status}')
+
+    def cmd_error(self, cmd: str, error):
+        return self._append_new_msg(f'Sorry, an error encountered when executing command: {cmd}, error: {error}')

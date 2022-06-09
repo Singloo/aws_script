@@ -1,4 +1,3 @@
-import math
 import re
 from src.logger import logger
 from botocore.exceptions import ClientError
@@ -8,7 +7,7 @@ import asyncio
 from typing import List, TYPE_CHECKING, Tuple
 from src.types import CachedData
 import aioboto3
-from src.types.type import Ec2Instance
+from src.types.type import Ec2Instance, Ec2OperationLog, Ec2Status
 from src.utils.constants import REGION_NAME, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, SS_PORT, SS_STR
 from . import AsyncBaseMessageHandler
 from .InputValidator import ValidatorManager, Validator, SessionExpired, ValidatorInvalidAndExceedMaximumTimes, ValidatorInvalidInput, SessionFinished, NoSuchSession
@@ -16,17 +15,23 @@ from .exceptions import InvalidCmd
 from src.db.awsCrediential import AwsCredientialRepo
 from src.db.ec2Instance import Ec2InstanceRepo
 from src.utils.util import re_strict_match
+from src.db.ec2OperationLog import Ec2OperationLogRepo
+from src.db.ec2Status import Ec2StatusRepo
 from functools import partial
 import base64
 from .helper import test_aws_resource
+from .messageGenerator import MessageGenerator
+from bson.objectid import ObjectId
 
 if TYPE_CHECKING:
     from mypy_boto3_ec2.client import EC2Client
     from mypy_boto3_ec2.service_resource import EC2ServiceResource, Instance
+    from mypy_boto3_ec2.type_defs import StartInstancesResultTypeDef
 else:
     EC2Client = object
     EC2ServiceResource = object
     Instance = object
+    StartInstancesResultTypeDef = object
 
 
 def destruct_msg(msg: str):
@@ -324,19 +329,67 @@ class Ec2Rm(AsyncBaseMessageHandler):
         return f'Success, instance: {identifier} has been removed.'
 
 
+def _get_ec2_instance(vague_id: str | None) -> Ec2Instance:
+    if vague_id is None:
+        return Ec2InstanceRepo().get_default()
+    return Ec2InstanceRepo().find_by_vague_id(vague_id)
+
+
+def on_cmd_finish(ec2_log_id: ObjectId, instance_id: ObjectId, status: str, ip: str):
+    pass
+
+
+
+async def _ec2_start(instance_id: str):
+    async with getEc2Instance(instance_id) as ins:
+        try:
+            ins_state = await ins.state
+            prev_state = ins_state['Name']
+            response: StartInstancesResultTypeDef = await ins.start()
+            logger.info('[Instance successfully started]')
+            return response['StartingInstances'][0]['CurrentState']['Name']
+        except Exception as e:
+            logger.error(
+                f'[ec2 start error] instance_id: {instance_id} error: {e}')
+            return MessageGenerator().cmd_error('start', e)
+
+
 class Ec2Start(AsyncBaseMessageHandler):
     async def __call__(self, cmds: list[str]):
-        print('ec2 start', cmds)
+        if len(cmds) >= 2:
+            raise InvalidCmd(MessageGenerator().invalid_cmd(
+                'ec2 start', '<id | alias> or no input(The default Ec2 instance will be used)').generate())
+        ec2_instance = _get_ec2_instance(None if len(cmds) == 0 else cmds[0])
+        status: Ec2Status = Ec2StatusRepo().find_by_id(ec2_instance['_id'])
+        repo = Ec2OperationLogRepo()
+        unfinished_cmd = repo.get_last_unfinished_cmd()
+        if unfinished_cmd is not None:
+            unfinished_cmd: Ec2OperationLog
+            cmd = unfinished_cmd['command']
+            if cmd == 'start':
+                return MessageGenerator().same_cmd_is_running(cmd, unfinished_cmd['started_at']).generate()
+            return MessageGenerator().last_cmd_still_running(cmd, unfinished_cmd['started_at'], status['status']).generate()
+        if status['status'] != 'stopped':
+            return MessageGenerator().invalid_status_for_cmd('start', 'stopped', status['status']).generate()
+        ec2_log_id = repo.insert(ec2_instance['_id'], 'start', self.user_id)
 
 
-class Ec2Status(AsyncBaseMessageHandler):
+class Ec2StatusCmd(AsyncBaseMessageHandler):
     async def __call__(self, cmds: list[str]):
-        print('ec2 status', cmds)
+        if len(cmds) >= 2:
+            raise InvalidCmd(
+                MessageGenerator().invalid_cmd(
+                    'ec2 status', '<id | alias> or no input(The default Ec2 instance will be used)').generate())
+        ec2_instance = _get_ec2_instance(None if len(cmds) == 0 else cmds[0])
 
 
 class Ec2Stop(AsyncBaseMessageHandler):
     async def __call__(self, cmds: list[str]):
-        print('ec2 stop', cmds)
+        if len(cmds) >= 2:
+            raise InvalidCmd(
+                MessageGenerator().invalid_cmd(
+                    'ec2 alias', '<id | alias> or no input(The default Ec2 instance will be used)').generate())
+        ec2_instance = _get_ec2_instance(None if len(cmds) == 0 else cmds[0])
 
 
 class Ec2Alias(AsyncBaseMessageHandler):
@@ -376,11 +429,11 @@ class Ec2Handler(AsyncBaseMessageHandler):
 
     @property
     def status(self):
-        return Ec2Status(self.params)
+        return Ec2StatusCmd(self.params)
 
     @property
     def state(self):
-        return Ec2Status(self.params)
+        return Ec2StatusCmd(self.params)
 
     @property
     def stop(self):

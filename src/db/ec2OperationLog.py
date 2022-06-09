@@ -17,7 +17,7 @@ class Ec2OperationLogRepo(Mongo):
         self.col = self.get_collection('ec2OperationLog')
         self.userRepo = UserRepo()
 
-    def insert(self, ec2_id: ObjectId, cmd: str, user_id: ObjectId):
+    def insert(self, ec2_id: ObjectId, cmd: str, user_id: ObjectId) -> ObjectId:
         doc: Ec2OperationLog = {'ec2_id': ec2_id,
                                 'command': cmd,
                                 'triggered_by': user_id,

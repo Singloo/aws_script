@@ -1,6 +1,7 @@
 from .mongo import Mongo
 from bson.objectid import ObjectId
 from src.types.type import Ec2Status
+from pymongo.results import UpdateResult
 
 
 class Ec2StatusRepo(Mongo):
@@ -30,3 +31,10 @@ class Ec2StatusRepo(Mongo):
         return self.col.find_one({
             'ec2_id': ec2_id
         })
+
+    def update_status(self, ec2_id: ObjectId, status: str):
+        res: UpdateResult = self.col.update_one({
+            'ec2_id': ec2_id,
+            'status': status
+        })
+        return res.modified_count
