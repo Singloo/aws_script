@@ -38,7 +38,7 @@ if SCHEDULE_TO_STOP_EC2:
     logger.info('[SCHEDULE] starting')
     sched.remove_all_jobs()
     sched.add_job(schedule_to_shut_down_ec2, trigger='cron',
-                  args=(RESERVED_INSTANCE_ID,), hour=22-8, minute=0)
+                  args=(RESERVED_INSTANCE_ID,), hour=22, minute=0)
     sched.start()
     logger.info('[SCHEDULE] running')
 
