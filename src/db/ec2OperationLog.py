@@ -33,8 +33,29 @@ class Ec2OperationLogRepo(Mongo):
             '_id': _id
         }, {
             'status': 'exceed_max_runtime',
-            'success': False,
             'finished_at': datetime.now()
+        })
+
+    def error_operation(self, _id: ObjectId, error):
+        self.col.update_one({
+            '_id': _id
+        }, {
+            '$set': {
+                'status': 'error',
+                'finished_at': datetime.now(),
+                'error': error
+            }
+        })
+
+    def finish_operation(self, _id: ObjectId):
+        self.col.update_one({
+            '_id': _id
+        }, {
+            '$set': {
+                'status': 'success',
+                'finished_at': datetime.now(),
+                'success': True
+            }
         })
 
     def get_last_unfinished_cmd(self, ec2_id: ObjectId) -> None | Ec2OperationLog:

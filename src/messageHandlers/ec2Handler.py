@@ -335,20 +335,27 @@ def _get_ec2_instance(vague_id: str | None) -> Ec2Instance:
     return Ec2InstanceRepo().find_by_vague_id(vague_id)
 
 
-def on_cmd_finish(ec2_log_id: ObjectId, instance_id: ObjectId, status: str, ip: str):
+def on_cmd_finish(ec2_log_id: ObjectId, instance_id: ObjectId, status: str, ip: str = None):
+    Ec2OperationLogRepo().finish_operation(ec2_log_id)
+    Ec2StatusRepo().update_status(instance_id, status, ip)
+
+
+async def try_status(instance_id: ObjectId, seconds: float = 3.5):
     pass
 
 
-
-async def _ec2_start(instance_id: str):
+async def _ec2_start(instance_id: ObjectId, ec2_log_id: ObjectId):
     async with getEc2Instance(instance_id) as ins:
         try:
             ins_state = await ins.state
             prev_state = ins_state['Name']
             response: StartInstancesResultTypeDef = await ins.start()
             logger.info('[Instance successfully started]')
-            return response['StartingInstances'][0]['CurrentState']['Name']
+            curr_state = response['StartingInstances'][0]['CurrentState']['Name']
+            on_cmd_finish(ec2_log_id, instance_id, curr_state)
+            return curr_state
         except Exception as e:
+            Ec2OperationLogRepo().error_operation(ec2_log_id, e)
             logger.error(
                 f'[ec2 start error] instance_id: {instance_id} error: {e}')
             return MessageGenerator().cmd_error('start', e)

@@ -32,9 +32,13 @@ class Ec2StatusRepo(Mongo):
             'ec2_id': ec2_id
         })
 
-    def update_status(self, ec2_id: ObjectId, status: str):
+    def update_status(self, ec2_id: ObjectId, status: str, ip: str | None = None):
+        next_doc = {'status': status}
+        if ip is not None:
+            next_doc['ip'] = ip
         res: UpdateResult = self.col.update_one({
             'ec2_id': ec2_id,
-            'status': status
+        }, {
+            '$set': next_doc
         })
         return res.modified_count

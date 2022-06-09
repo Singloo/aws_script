@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TypedDict, Callable, Optional
+from typing import Any, TypedDict, Callable, Optional
 from bson.objectid import ObjectId
 from enum import Enum
 
@@ -69,8 +69,8 @@ class Ec2Status(MongoMetadata):
 
 class Ec2OperationLogStatus(Enum):
     PENDING = 'pending'
-    DONE = 'done'
-    FAILED = 'failed'
+    SUCCESS = 'success'
+    ERROR = 'error'
     EXCEED_MAX_RUNTIME = 'exceed_max_runtime'
 
 
@@ -82,3 +82,4 @@ class Ec2OperationLog(MongoMetadata):
     started_at: datetime
     finished_at: datetime | None
     status: Ec2OperationLogStatus
+    error: Any | None
