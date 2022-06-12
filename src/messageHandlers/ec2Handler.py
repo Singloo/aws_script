@@ -2,7 +2,7 @@ import re
 from src.logger import logger
 from botocore.exceptions import ClientError
 from src.db.redis import json_save, json_get, CacheKeys
-from src.db.exceptions import ExceedMaximumNumber
+from src.db.exceptions import ExceedMaximumNumber, NoSuchDocument
 import asyncio
 from typing import List, TYPE_CHECKING, Tuple
 from src.types import CachedData
@@ -22,6 +22,9 @@ import base64
 from .helper import test_aws_resource
 from .messageGenerator import MessageGenerator
 from bson.objectid import ObjectId
+from src.utils.util import async_race
+from .ec2HandlerHelper import get_ins_state_and_ip, update_log_and_instance_status, create_and_schedule_status_task
+from .ec2InstanceManager import getEc2Instance, getEc2InstanceWithCredentialId
 
 if TYPE_CHECKING:
     from mypy_boto3_ec2.client import EC2Client
@@ -32,175 +35,6 @@ else:
     EC2ServiceResource = object
     Instance = object
     StartInstancesResultTypeDef = object
-
-
-def destruct_msg(msg: str):
-    return msg.lower().strip().split(' ')
-
-
-class Ec2InstanceManager():
-    ec2: EC2ServiceResource
-
-    def __init__(self, instance_id: str, region_name: str, aws_access_key_id: str, aws_secret_access_key: str) -> None:
-        self.instance_id = instance_id
-        self.region_name = region_name
-        self.aws_access_key_id = aws_access_key_id
-        self.aws_secret_access_key = aws_secret_access_key
-
-    async def __aenter__(self, ):
-        session = aioboto3.Session()
-        self.ec2 = await session.resource('ec2',
-                                          region_name=self.region_name,
-                                          aws_access_key_id=self.aws_access_key_id,
-                                          aws_secret_access_key=self.aws_secret_access_key).__aenter__()
-        filtered = self.ec2.instances.filter(
-            InstanceIds=[self.instance_id]
-        )
-        ins: Instance
-        async for item in filtered.limit(1):
-            ins = item
-        return ins
-
-    async def __aexit__(self, type, value, trace):
-        await self.ec2.__aexit__(type, value, trace)
-
-
-def getEc2Instance(instance_id: str):
-    return Ec2InstanceManager(
-        instance_id,
-        REGION_NAME,
-        AWS_ACCESS_KEY_ID,
-        AWS_SECRET_ACCESS_KEY
-    )
-
-
-def is_valid_cmd(msg: str, data: CachedData | None = None) -> Tuple[bool, List[str]]:
-    tokens = destruct_msg(msg)
-    if msg in ['state', 'status', 'start', 'stop'] and data != None and data.get('instance_id') != None:
-        logger.info('[reconstruct tokens with data]')
-        tokens = ['ec2', data.get('instance_id'), tokens[0]]
-    logger.info(f'[tokens] {tokens}')
-    if len(tokens) != 3:
-        return False, None
-    flag = 0
-    if tokens[0].lower() == 'ec2':
-        flag += 1
-        logger.info('[msg stage 1 pass]')
-    if tokens[1] != None and re.fullmatch(r"^i-[a-z0-9]{17}$", tokens[1]) != None:
-        flag += 1
-        logger.info('[msg stage 2 pass]')
-    if tokens[2] in ['start', 'state', 'stop', 'status']:
-        flag += 1
-        logger.info('[msg stage 3 pass]')
-    return flag == 3, tokens
-
-
-async def start_ec2(instance_id: str) -> Tuple[bool, str]:
-    async with getEc2Instance(instance_id) as ins:
-        ins_state = await ins.state
-        ins_state = ins_state['Name']
-        if ins_state != 'stopped':
-            logger.info(f'[Instance is {ins_state}')
-            return False, f"Instance current state is {ins_state}"
-        response = await ins.start()
-        logger.info('[Instance successfully started]')
-        return True, response['StartingInstances'][0]['CurrentState']['Name']
-
-
-async def stop_ec2(instance_id: str) -> Tuple[bool, str]:
-    async with getEc2Instance(instance_id) as ins:
-        ins_state = await ins.state
-        ins_state = ins_state['Name']
-        if ins_state != 'running':
-            logger.info(f'[instance is] {ins_state}')
-            return False, f"Instance current state is {ins_state}"
-        response = await ins.stop()
-        logger.info('[Instance successfully stopped]')
-        return True, response['StoppingInstances'][0]['CurrentState']['Name']
-
-
-def compose_ss_token(ip: str,):
-    return {
-        'new_ss_token': f"{SS_STR}{ip}:{SS_PORT}",
-        'ip': ip
-    }
-
-
-async def load_ins(ins: Instance) -> Instance:
-    '''
-    Deprecated
-    '''
-    logger.info('[load_ins] start')
-    await ins.load()
-    logger.info('[load_ins] end')
-    return ins
-
-
-async def wait_for_ip(ins: Instance):
-    logger.info('[wait_for_ip] start')
-    ip = await ins.public_ip_address
-    state = await ins.state
-    loop_times = 1
-    while ip is None:
-        logger.info(f'[ip is none] wait for 0.2s')
-        await asyncio.sleep(0.2)
-        ip = await ins.public_ip_address
-        state = await ins.state
-        loop_times += 1
-    logger.info(f'[wait_for_ip] end [times] {loop_times}')
-    return {'state': state['Name'], **compose_ss_token(ip)}
-
-
-async def _get_and_set_ec2_status(instance_id: str):
-    logger.info('[_get_and_set_ec2_status] start')
-    async with getEc2Instance(instance_id) as ins:
-        ins_state = await ins.state
-        ins_state = ins_state['Name']
-        addon = await wait_for_ip(ins) if ins_state != 'stopped' else {
-            'state': 'stopped'}
-        msg = '\n \n'.join(addon.values())
-        await json_save(CacheKeys.status_msg(instance_id), msg, exp=60*2)
-        logger.info(f'[{instance_id}] status msg cached')
-        logger.info('[_get_and_set_ec2_status] end')
-        return msg
-
-
-async def query_ec2_status(instance_id: str):
-    msg = await json_get(CacheKeys.status_msg(instance_id))
-    logger.info(f'[redis res] [cached msg] {instance_id}:{msg}')
-    if msg is None:
-        logger.info('[no cached msg] start to load ec2 ins')
-        msg = await _get_and_set_ec2_status(instance_id)
-        logger.info('[no cached msg] ec2 status loaded')
-        return True, msg
-    else:
-        logger.info(f'[{instance_id}] got cached status msg')
-        loop = asyncio.new_event_loop()
-        task = loop.create_task(_get_and_set_ec2_status(instance_id))
-        task.add_done_callback(
-            lambda *args: logger.info(f'[{instance_id}]: background task done'))
-        logger.info(f'return cached status msg')
-        return True, msg
-
-
-async def ec2_action_handler(tokens: List[str], user_id: str) -> Tuple[bool, str]:
-    cmd = tokens[2]
-    instance_id = tokens[1]
-    try:
-        if cmd in ['start']:
-            success, resp = await start_ec2(instance_id)
-        if cmd in ['stop']:
-            success, resp = await stop_ec2(instance_id)
-        if cmd in ['state', 'status']:
-            success, resp = await query_ec2_status(instance_id)
-        logger.info(f'[{user_id}] resp got')
-        await json_save(CacheKeys.userdata(user_id), {'instance_id': instance_id}, exp=10*60)
-        logger.info(f'[Cache data saved] {user_id}')
-        return success, resp
-
-    except ClientError as e:
-        logger.error(e)
-        return False, 'An aws error encountered'
 
 
 def _try_to_decrypt_outline_token(token: str):
@@ -222,6 +56,9 @@ def _try_to_decrypt_outline_token(token: str):
 
 
 def validate_outline(input: str):
+    '''
+        check if a outline token is valid
+    '''
     if input.strip().lower() == 'skip':
         return True
     token = input.split('?')[0]
@@ -335,24 +172,17 @@ def _get_ec2_instance(vague_id: str | None) -> Ec2Instance:
     return Ec2InstanceRepo().find_by_vague_id(vague_id)
 
 
-def on_cmd_finish(ec2_log_id: ObjectId, instance_id: ObjectId, status: str, ip: str = None):
-    Ec2OperationLogRepo().finish_operation(ec2_log_id)
-    Ec2StatusRepo().update_status(instance_id, status, ip)
-
-
-async def try_status(instance_id: ObjectId, seconds: float = 3.5):
-    pass
-
-
-async def _ec2_start(instance_id: ObjectId, ec2_log_id: ObjectId):
-    async with getEc2Instance(instance_id) as ins:
+async def _ec2_start(instance_id: ObjectId, aws_crediential_id: ObjectId, ec2_log_id: ObjectId, user_id: ObjectId):
+    async with getEc2InstanceWithCredentialId(instance_id, aws_crediential_id) as ins:
         try:
             ins_state = await ins.state
             prev_state = ins_state['Name']
             response: StartInstancesResultTypeDef = await ins.start()
             logger.info('[Instance successfully started]')
             curr_state = response['StartingInstances'][0]['CurrentState']['Name']
-            on_cmd_finish(ec2_log_id, instance_id, curr_state)
+            update_log_and_instance_status(ec2_log_id, instance_id, curr_state)
+            create_and_schedule_status_task(
+                instance_id, aws_crediential_id, user_id, 'running')
             return curr_state
         except Exception as e:
             Ec2OperationLogRepo().error_operation(ec2_log_id, e)
@@ -379,6 +209,13 @@ class Ec2Start(AsyncBaseMessageHandler):
         if status['status'] != 'stopped':
             return MessageGenerator().invalid_status_for_cmd('start', 'stopped', status['status']).generate()
         ec2_log_id = repo.insert(ec2_instance['_id'], 'start', self.user_id)
+        try:
+            current_status = await _ec2_start(
+                ec2_instance['_id'], ec2_instance['aws_crediential_id'], ec2_log_id, self.user_id)
+            return MessageGenerator().cmd_success('start', current_status).generate()
+        except ClientError as e:
+            repo.error_operation(ec2_log_id, e)
+            return MessageGenerator().cmd_error('start', e)
 
 
 class Ec2StatusCmd(AsyncBaseMessageHandler):
@@ -388,6 +225,25 @@ class Ec2StatusCmd(AsyncBaseMessageHandler):
                 MessageGenerator().invalid_cmd(
                     'ec2 status', '<id | alias> or no input(The default Ec2 instance will be used)').generate())
         ec2_instance = _get_ec2_instance(None if len(cmds) == 0 else cmds[0])
+        status: Ec2Status = Ec2StatusRepo().find_by_id(ec2_instance['_id'])
+        repo = Ec2OperationLogRepo()
+        unfinished_cmd = repo.get_last_unfinished_cmd()
+        if unfinished_cmd is not None:
+            unfinished_cmd: Ec2OperationLog
+            cmd = unfinished_cmd['command']
+            if cmd == 'start':
+                return MessageGenerator().same_cmd_is_running(cmd, unfinished_cmd['started_at']).generate()
+            return MessageGenerator().last_cmd_still_running(cmd, unfinished_cmd['started_at'], status['status']).generate()
+        if status['status'] != 'stopped':
+            return MessageGenerator().invalid_status_for_cmd('start', 'stopped', status['status']).generate()
+        ec2_log_id = repo.insert(ec2_instance['_id'], 'start', self.user_id)
+        try:
+            current_status = await _ec2_start(
+                ec2_instance['_id'], ec2_instance['aws_crediential_id'], ec2_log_id, self.user_id)
+            return MessageGenerator().cmd_success('start', current_status).generate()
+        except ClientError as e:
+            repo.error_operation(ec2_log_id, e)
+            return MessageGenerator().cmd_error('start', e)
 
 
 class Ec2Stop(AsyncBaseMessageHandler):
@@ -397,6 +253,25 @@ class Ec2Stop(AsyncBaseMessageHandler):
                 MessageGenerator().invalid_cmd(
                     'ec2 alias', '<id | alias> or no input(The default Ec2 instance will be used)').generate())
         ec2_instance = _get_ec2_instance(None if len(cmds) == 0 else cmds[0])
+        status: Ec2Status = Ec2StatusRepo().find_by_id(ec2_instance['_id'])
+        repo = Ec2OperationLogRepo()
+        unfinished_cmd = repo.get_last_unfinished_cmd()
+        if unfinished_cmd is not None:
+            unfinished_cmd: Ec2OperationLog
+            cmd = unfinished_cmd['command']
+            if cmd == 'start':
+                return MessageGenerator().same_cmd_is_running(cmd, unfinished_cmd['started_at']).generate()
+            return MessageGenerator().last_cmd_still_running(cmd, unfinished_cmd['started_at'], status['status']).generate()
+        if status['status'] != 'stopped':
+            return MessageGenerator().invalid_status_for_cmd('start', 'stopped', status['status']).generate()
+        ec2_log_id = repo.insert(ec2_instance['_id'], 'start', self.user_id)
+        try:
+            current_status = await _ec2_start(
+                ec2_instance['_id'], ec2_instance['aws_crediential_id'], ec2_log_id, self.user_id)
+            return MessageGenerator().cmd_success('start', current_status).generate()
+        except ClientError as e:
+            repo.error_operation(ec2_log_id, e)
+            return MessageGenerator().cmd_error('start', e)
 
 
 class Ec2Alias(AsyncBaseMessageHandler):
@@ -419,6 +294,7 @@ class Ec2Alias(AsyncBaseMessageHandler):
 class Ec2Cron(AsyncBaseMessageHandler):
     async def __call__(self, cmds: list[str]):
         print('ec2 cron', cmds)
+        return 'Not implemented'
 
 
 class Ec2Handler(AsyncBaseMessageHandler):

@@ -48,3 +48,9 @@ class MessageGenerator():
 
     def cmd_error(self, cmd: str, error):
         return self._append_new_msg(f'Sorry, an error encountered when executing command: {cmd}, error: {error}')
+
+    def cmd_success(self, cmd: str, current_status: str):
+        return self._append_new_msg(f'Command: {cmd} executed successfully, current instance state: {current_status}')
+
+    def no_such_document(self, collection_name: str, *conditions: list[str]):
+        return self._append_new_msg(f'No such document in: {collection_name}, queryed with: {conditions}')
