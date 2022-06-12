@@ -3,18 +3,20 @@ from typing import Any, TypeVar, Callable
 from src.logger import logger
 import re
 from re import Pattern
-TIME_OUT_MSG = "Sorry, operation didn't finish on time, task is still running, please check it out later"
+from .exceptions import TimeoutException
 
 
-async def timeout(time: float = 2.3, resp=(False, TIME_OUT_MSG)):
+async def timeout(time: float = 2.3):
     await asyncio.sleep(time)
-    return resp
+    raise TimeoutException
 
 
 async def async_race(*fs):
     loop = asyncio.get_event_loop()
     tasks = [loop.create_task(f) for f in fs]
     done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+    for task in pending:
+        task.cancel()
     return [o.result() for o in done]
 
 T = TypeVar('T')
@@ -56,7 +58,7 @@ def desensitize_data(string: str, max_star_count: None | int = None, max_visvibl
     visible_count = min(4, round(str_len * 0.3))
     if max_visvible_char != None and max_visvible_char < visible_count:
         visible_count = max_visvible_char
-        
+
     star_count = str_len-visible_count*2
     if max_star_count != None and max_star_count < star_count:
         star_count = max_star_count
