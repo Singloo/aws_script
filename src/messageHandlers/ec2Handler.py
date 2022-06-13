@@ -29,7 +29,7 @@ from .ec2InstanceManager import getEc2Instance, getEc2InstanceWithCredentialId
 if TYPE_CHECKING:
     from mypy_boto3_ec2.client import EC2Client
     from mypy_boto3_ec2.service_resource import EC2ServiceResource, Instance
-    from mypy_boto3_ec2.type_defs import StartInstancesResultTypeDef
+    from mypy_boto3_ec2.type_defs import StartInstancesResultTypeDef, StopInstancesResultTypeDef
 else:
     EC2Client = object
     EC2ServiceResource = object
@@ -68,6 +68,13 @@ def validate_outline(input: str):
         return False
     res = _try_to_decrypt_outline_token(token)
     return res is not False
+
+
+def assert_cmds_to_be_one(cmds: list[str]):
+    if len(cmds) >= 2:
+        raise InvalidCmd(
+            MessageGenerator().invalid_cmd(
+                'ec2 status', '<id | alias> or no input(The default Ec2 instance will be used)').generate())
 
 
 EC2_VALIDATORS = [
@@ -172,30 +179,36 @@ def _get_ec2_instance(vague_id: str | None) -> Ec2Instance:
     return Ec2InstanceRepo().find_by_vague_id(vague_id)
 
 
-async def _ec2_start(instance_id: ObjectId, aws_crediential_id: ObjectId, ec2_log_id: ObjectId, user_id: ObjectId):
+async def _ec2_start_or_stop(cmd: str, instance_id: ObjectId, aws_crediential_id: ObjectId, ec2_log_id: ObjectId, user_id: ObjectId):
+    is_start_cmd = cmd == 'start'
     async with getEc2InstanceWithCredentialId(instance_id, aws_crediential_id) as ins:
         try:
             ins_state = await ins.state
             prev_state = ins_state['Name']
-            response: StartInstancesResultTypeDef = await ins.start()
-            logger.info('[Instance successfully started]')
-            curr_state = response['StartingInstances'][0]['CurrentState']['Name']
+            response = await ins.start() if is_start_cmd else await ins.stop()
+            logger.info(f'[Instance successfully {cmd}ed]')
+            resp_attr = 'StartingInstances' if is_start_cmd else 'StoppingInstances'
+            curr_state = response[resp_attr][0]['CurrentState']['Name']
             update_log_and_instance_status(ec2_log_id, instance_id, curr_state)
+            expected_status = 'running' if is_start_cmd else 'stopped'
             create_and_schedule_status_task(
-                instance_id, aws_crediential_id, user_id, 'running')
+                instance_id, aws_crediential_id, user_id, expected_status)
             return curr_state
         except Exception as e:
             Ec2OperationLogRepo().error_operation(ec2_log_id, e)
             logger.error(
-                f'[ec2 start error] instance_id: {instance_id} error: {e}')
-            return MessageGenerator().cmd_error('start', e)
+                f'[ec2 {cmd} error] instance_id: {instance_id} error: {e}')
+            return MessageGenerator().cmd_error(cmd, e)
+
+
+_ec2_start = partial(_ec2_start_or_stop, 'start')
+
+_ec2_stop = partial(_ec2_start_or_stop, 'stop')
 
 
 class Ec2Start(AsyncBaseMessageHandler):
     async def __call__(self, cmds: list[str]):
-        if len(cmds) >= 2:
-            raise InvalidCmd(MessageGenerator().invalid_cmd(
-                'ec2 start', '<id | alias> or no input(The default Ec2 instance will be used)').generate())
+        assert_cmds_to_be_one(cmds)
         ec2_instance = _get_ec2_instance(None if len(cmds) == 0 else cmds[0])
         status: Ec2Status = Ec2StatusRepo().find_by_id(ec2_instance['_id'])
         repo = Ec2OperationLogRepo()
@@ -220,10 +233,7 @@ class Ec2Start(AsyncBaseMessageHandler):
 
 class Ec2StatusCmd(AsyncBaseMessageHandler):
     async def __call__(self, cmds: list[str]):
-        if len(cmds) >= 2:
-            raise InvalidCmd(
-                MessageGenerator().invalid_cmd(
-                    'ec2 status', '<id | alias> or no input(The default Ec2 instance will be used)').generate())
+        assert_cmds_to_be_one(cmds)
         ec2_instance = _get_ec2_instance(None if len(cmds) == 0 else cmds[0])
         status: Ec2Status = Ec2StatusRepo().find_by_id(ec2_instance['_id'])
         repo = Ec2OperationLogRepo()
@@ -248,10 +258,7 @@ class Ec2StatusCmd(AsyncBaseMessageHandler):
 
 class Ec2Stop(AsyncBaseMessageHandler):
     async def __call__(self, cmds: list[str]):
-        if len(cmds) >= 2:
-            raise InvalidCmd(
-                MessageGenerator().invalid_cmd(
-                    'ec2 alias', '<id | alias> or no input(The default Ec2 instance will be used)').generate())
+        assert_cmds_to_be_one(cmds)
         ec2_instance = _get_ec2_instance(None if len(cmds) == 0 else cmds[0])
         status: Ec2Status = Ec2StatusRepo().find_by_id(ec2_instance['_id'])
         repo = Ec2OperationLogRepo()
