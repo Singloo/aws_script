@@ -71,6 +71,10 @@ def validate_outline(input: str):
 
 
 def assert_cmds_to_be_one(cmds: list[str]):
+    '''
+        for cmds ec2 start / ec2 stop / ec2 status
+        expect one or zero input
+    '''
     if len(cmds) >= 2:
         raise InvalidCmd(
             MessageGenerator().invalid_cmd(
@@ -206,53 +210,62 @@ _ec2_start = partial(_ec2_start_or_stop, 'start')
 _ec2_stop = partial(_ec2_start_or_stop, 'stop')
 
 
+def get_ec2_instance_status_and_unfinished_cmd(cmds: list[str]):
+    ec2_instance = _get_ec2_instance(None if len(cmds) == 0 else cmds[0])
+    ec2_status: Ec2Status = Ec2StatusRepo().find_by_id(ec2_instance['_id'])
+    repo = Ec2OperationLogRepo()
+    unfinished_cmd = repo.get_last_unfinished_cmd()
+    return ec2_instance, ec2_status, unfinished_cmd
+
+
+def handle_unfinished_cmd(unfinished_cmd: Ec2OperationLog, cmd_to_run: str, current_status: str):
+    cmd = unfinished_cmd['command']
+    if cmd == cmd_to_run:
+        return MessageGenerator().same_cmd_is_running(cmd, unfinished_cmd['started_at']).generate()
+    return MessageGenerator().last_cmd_still_running(cmd, unfinished_cmd['started_at'], current_status).generate()
+
+
 class Ec2Start(AsyncBaseMessageHandler):
     async def __call__(self, cmds: list[str]):
         assert_cmds_to_be_one(cmds)
-        ec2_instance = _get_ec2_instance(None if len(cmds) == 0 else cmds[0])
-        status: Ec2Status = Ec2StatusRepo().find_by_id(ec2_instance['_id'])
-        repo = Ec2OperationLogRepo()
-        unfinished_cmd = repo.get_last_unfinished_cmd()
+        ec2_instance, ec2_status, unfinished_cmd = get_ec2_instance_status_and_unfinished_cmd(
+            cmds)
         if unfinished_cmd is not None:
-            unfinished_cmd: Ec2OperationLog
-            cmd = unfinished_cmd['command']
-            if cmd == 'start':
-                return MessageGenerator().same_cmd_is_running(cmd, unfinished_cmd['started_at']).generate()
-            return MessageGenerator().last_cmd_still_running(cmd, unfinished_cmd['started_at'], status['status']).generate()
-        if status['status'] != 'stopped':
-            return MessageGenerator().invalid_status_for_cmd('start', 'stopped', status['status']).generate()
-        ec2_log_id = repo.insert(ec2_instance['_id'], 'start', self.user_id)
+            return handle_unfinished_cmd(unfinished_cmd, 'start', ec2_status['status'])
+        if ec2_status['status'] != 'stopped':
+            return MessageGenerator().invalid_status_for_cmd('start', 'stopped', ec2_status['status']).generate()
+        ec2_log_id = Ec2OperationLogRepo().insert(
+            ec2_instance['_id'], 'start', self.user_id)
         try:
             current_status = await _ec2_start(
                 ec2_instance['_id'], ec2_instance['aws_crediential_id'], ec2_log_id, self.user_id)
             return MessageGenerator().cmd_success('start', current_status).generate()
         except ClientError as e:
-            repo.error_operation(ec2_log_id, e)
+            Ec2OperationLogRepo().error_operation(ec2_log_id, e)
             return MessageGenerator().cmd_error('start', e)
 
 
 class Ec2StatusCmd(AsyncBaseMessageHandler):
     async def __call__(self, cmds: list[str]):
         assert_cmds_to_be_one(cmds)
-        ec2_instance = _get_ec2_instance(None if len(cmds) == 0 else cmds[0])
-        status: Ec2Status = Ec2StatusRepo().find_by_id(ec2_instance['_id'])
-        repo = Ec2OperationLogRepo()
-        unfinished_cmd = repo.get_last_unfinished_cmd()
+        ec2_instance, ec2_status, unfinished_cmd = get_ec2_instance_status_and_unfinished_cmd(
+            cmds)
         if unfinished_cmd is not None:
             unfinished_cmd: Ec2OperationLog
             cmd = unfinished_cmd['command']
             if cmd == 'start':
                 return MessageGenerator().same_cmd_is_running(cmd, unfinished_cmd['started_at']).generate()
-            return MessageGenerator().last_cmd_still_running(cmd, unfinished_cmd['started_at'], status['status']).generate()
-        if status['status'] != 'stopped':
-            return MessageGenerator().invalid_status_for_cmd('start', 'stopped', status['status']).generate()
-        ec2_log_id = repo.insert(ec2_instance['_id'], 'start', self.user_id)
+            return MessageGenerator().last_cmd_still_running(cmd, unfinished_cmd['started_at'], ec2_status['status']).generate()
+        if ec2_status['status'] != 'stopped':
+            return MessageGenerator().invalid_status_for_cmd('start', 'stopped', ec2_status['status']).generate()
+        ec2_log_id = Ec2OperationLogRepo().insert(
+            ec2_instance['_id'], 'start', self.user_id)
         try:
             current_status = await _ec2_start(
                 ec2_instance['_id'], ec2_instance['aws_crediential_id'], ec2_log_id, self.user_id)
             return MessageGenerator().cmd_success('start', current_status).generate()
         except ClientError as e:
-            repo.error_operation(ec2_log_id, e)
+            Ec2OperationLogRepo().error_operation(ec2_log_id, e)
             return MessageGenerator().cmd_error('start', e)
 
 
@@ -260,24 +273,24 @@ class Ec2Stop(AsyncBaseMessageHandler):
     async def __call__(self, cmds: list[str]):
         assert_cmds_to_be_one(cmds)
         ec2_instance = _get_ec2_instance(None if len(cmds) == 0 else cmds[0])
-        status: Ec2Status = Ec2StatusRepo().find_by_id(ec2_instance['_id'])
-        repo = Ec2OperationLogRepo()
-        unfinished_cmd = repo.get_last_unfinished_cmd()
+        ec2_instance, ec2_status, unfinished_cmd = get_ec2_instance_status_and_unfinished_cmd(
+            cmds)
         if unfinished_cmd is not None:
             unfinished_cmd: Ec2OperationLog
             cmd = unfinished_cmd['command']
             if cmd == 'start':
                 return MessageGenerator().same_cmd_is_running(cmd, unfinished_cmd['started_at']).generate()
-            return MessageGenerator().last_cmd_still_running(cmd, unfinished_cmd['started_at'], status['status']).generate()
-        if status['status'] != 'stopped':
-            return MessageGenerator().invalid_status_for_cmd('start', 'stopped', status['status']).generate()
-        ec2_log_id = repo.insert(ec2_instance['_id'], 'start', self.user_id)
+            return MessageGenerator().last_cmd_still_running(cmd, unfinished_cmd['started_at'], ec2_status['status']).generate()
+        if ec2_status['status'] != 'stopped':
+            return MessageGenerator().invalid_status_for_cmd('start', 'stopped', ec2_status['status']).generate()
+        ec2_log_id = Ec2OperationLogRepo().insert(
+            ec2_instance['_id'], 'start', self.user_id)
         try:
             current_status = await _ec2_start(
                 ec2_instance['_id'], ec2_instance['aws_crediential_id'], ec2_log_id, self.user_id)
             return MessageGenerator().cmd_success('start', current_status).generate()
         except ClientError as e:
-            repo.error_operation(ec2_log_id, e)
+            Ec2OperationLogRepo().error_operation(ec2_log_id, e)
             return MessageGenerator().cmd_error('start', e)
 
 
