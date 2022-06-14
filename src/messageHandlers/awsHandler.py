@@ -4,23 +4,12 @@ from functools import partial
 from src.utils.util import re_strict_match, re_test
 import src.utils.crypto as Crypto
 from src.db.redis import CacheKeys
-import aioboto3
-from botocore.exceptions import ClientError
 from src.db.awsCrediential import AwsCredientialRepo
 from src.db.exceptions import ExceedMaximumNumber
 from src.types import AwsCrediential
 from src.utils.util import desensitize_data
-from typing import TYPE_CHECKING
 from .exceptions import InvalidCmd
-from bson.objectid import ObjectId
-if TYPE_CHECKING:
-    from mypy_boto3_ec2.client import EC2Client
-    from mypy_boto3_ec2.service_resource import EC2ServiceResource, Instance
-else:
-    EC2Client = object
-    EC2ServiceResource = object
-    Instance = object
-
+from .helper import test_aws_resource
 
 class AwsBind(AsyncBaseMessageHandler):
     async def __call__(self, input: str | None = None):
@@ -37,7 +26,7 @@ class AwsBind(AsyncBaseMessageHandler):
             vm = ValidatorManager.load_validator(uniq_key)
             data = vm.collect()['data']
             col_name = vm.collect()['other_args']['col_name']
-            res = await test_aws_crediential(
+            res = await test_aws_resource(
                 data['region_name'], Crypto.decrypt(data['aws_access_key_id']), Crypto.decrypt(data['aws_secret_access_key']))
             if isinstance(res, str):
                 return res
@@ -81,15 +70,11 @@ class AwsRm(AsyncBaseMessageHandler):
         if len(cmds) != 1:
             raise InvalidCmd('aws rm: invalid input, expect id or alias')
         identifier = cmds[0]
-        is_object_id = ObjectId.is_valid(identifier)
         repo = AwsCredientialRepo()
-        find_instance = repo.find_by_id if is_object_id else repo.find_by_alias
-        args = (ObjectId(identifier),) if is_object_id else (
-            self.params['user_id'], identifier)
-        res = find_instance(*args)
-        if res is None:
+        ins = repo.find_by_vague_id(identifier)
+        if ins is None:
             return 'No such instance'
-        repo.delete_from_id(res['_id'])
+        repo.delete_from_id(ins['_id'])
         return f'Success, instance: {identifier} has been removed.'
 
 
@@ -139,19 +124,3 @@ AWS_VALIDATORS: list[Validator] = [
         validator=partial(re_strict_match, pattern=region_regex_str)
     ),
 ]
-
-
-async def test_aws_crediential(region_name: str, aws_access_key_id: str, aws_secret_access_key: str):
-    try:
-        session = aioboto3.Session()
-        async with session.resource('ec2',
-                                    region_name=region_name,
-                                    aws_access_key_id=aws_access_key_id,
-                                    aws_secret_access_key=aws_secret_access_key) as ec2:
-            ec2: EC2ServiceResource
-            all_instance = ec2.instances.all()
-            async for item in all_instance.limit(1):
-                pass
-            return True
-    except ClientError as e:
-        return e.response['Error']['Message']

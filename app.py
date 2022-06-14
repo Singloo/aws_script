@@ -13,6 +13,7 @@ from src.types import CachedData
 from src.utils.constants import RESERVED_INSTANCE_ID, SENTRY_DSN
 import sentry_sdk
 from sentry_sdk.integrations.sanic import SanicIntegration
+from src.db.user import UserRepo
 sentry_sdk.init(
     SENTRY_DSN,
 
@@ -37,7 +38,7 @@ if SCHEDULE_TO_STOP_EC2:
     logger.info('[SCHEDULE] starting')
     sched.remove_all_jobs()
     sched.add_job(schedule_to_shut_down_ec2, trigger='cron',
-                  args=(RESERVED_INSTANCE_ID,), hour=22-8, minute=0)
+                  args=(RESERVED_INSTANCE_ID,), hour=22, minute=0)
     sched.start()
     logger.info('[SCHEDULE] running')
 
@@ -54,11 +55,6 @@ async def message_handler(msg: str, user_id: str, data: CachedData | None = None
     return 'We dont have service ready for you'
 
 
-async def strem_response(response: ResponseStream, msgs: list[str]):
-    for msg in msgs:
-        await response.write(msg)
-
-
 @app.post('/wx')
 async def main_post(request: Request) -> HTTPResponse:
     recMsg = receive.parse_xml(request.body)
@@ -69,6 +65,8 @@ async def main_post(request: Request) -> HTTPResponse:
     if isinstance(recMsg, receive.Msg) and recMsg.MsgType == 'text':
         toUser = recMsg.FromUserName
         fromUser = recMsg.ToUserName
+        userRepo = UserRepo()
+        userId = userRepo.find_by_wechat_id(toUser)
         content = await message_handler(
             recMsg.Content, recMsg.FromUserName, cached_data)
         logger.info(f'[{recMsg.FromUserName}] reply ready')

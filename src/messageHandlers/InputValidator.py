@@ -94,6 +94,7 @@ class Validator():
     @value.setter
     def value(self, newValue: str):
         self._times += 1
+        newValue = newValue.strip()
         try:
             if not isinstance(newValue, str):
                 raise ValidatorInvalidInput
@@ -109,8 +110,8 @@ class Validator():
 
 class ValidatorManager():
     @classmethod
-    def init_db_input_validator(cls, validators: list[Validator], uniq_key: str,  col_name: str):
-        return cls(validators, uniq_key, col_name=col_name)
+    def init_db_input_validator(cls, validators: list[Validator], uniq_key: str,  col_name: str, **kwargs):
+        return cls(validators, uniq_key, col_name=col_name, **kwargs)
 
     @staticmethod
     async def load_validator(uniq_key: str):

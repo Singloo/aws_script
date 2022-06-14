@@ -15,11 +15,12 @@ class BaseMessageHandler():
     params: dict
     '''
         params: {
-            user_id: str,
+            user_id: ObjectId,
             origin_input: str,
             ...other params 
         }
     '''
+
     def __init__(self, params: Any = {}) -> None:
         self.params: dict = params
 
@@ -42,7 +43,7 @@ class AsyncBaseMessageHandler():
     params: dict
     '''
         params: {
-            user_id: str,
+            user_id: ObjectId,
             origin_input: str,
             ...other params 
         }
@@ -64,3 +65,7 @@ class AsyncBaseMessageHandler():
 
     async def _fallback(self, cmds: list[str]):
         raise NoSuchHandler
+
+    @property
+    def user_id(self):
+        return self.params['user_id']

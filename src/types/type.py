@@ -1,6 +1,7 @@
-from datetime import date
-from typing import TypedDict, Callable
+from datetime import datetime
+from typing import Any, TypedDict, Callable, Optional
 from bson.objectid import ObjectId
+from enum import Enum
 
 
 class CachedData(TypedDict):
@@ -29,8 +30,8 @@ class Validator(TypedDict):
 
 class MongoMetadata(TypedDict):
     _id: ObjectId
-    created_at: date
-    updated_at: date
+    created_at: datetime
+    updated_at: datetime
 
 
 class AwsCrediential(MongoMetadata):
@@ -43,8 +44,8 @@ class AwsCrediential(MongoMetadata):
 
 
 class Ec2Instance(MongoMetadata):
-    outline_token: str
-    outline_port: str
+    outline_token: str | None
+    outline_port: str | None
     instance_id: str
     alias: str
     default: bool
@@ -55,13 +56,22 @@ class Ec2Instance(MongoMetadata):
 
 class User(MongoMetadata):
     wechat_id: str
+    activated_at: datetime
 
 
 class Ec2Status(MongoMetadata):
     ec2_id: ObjectId
     status: str
     ip: str
-    last_modified_by: ObjectId
+    modified_by: ObjectId
+    last_command: str
+
+
+class Ec2OperationLogStatus(Enum):
+    PENDING = 'pending'
+    SUCCESS = 'success'
+    ERROR = 'error'
+    EXCEED_MAX_RUNTIME = 'exceed_max_runtime'
 
 
 class Ec2OperationLog(MongoMetadata):
@@ -69,5 +79,7 @@ class Ec2OperationLog(MongoMetadata):
     command: str
     triggered_by: ObjectId
     success: bool
-    started_at: date
-    finished_at: date
+    started_at: datetime
+    finished_at: datetime | None
+    status: Ec2OperationLogStatus
+    error: Any | None
