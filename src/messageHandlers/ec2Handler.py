@@ -241,13 +241,18 @@ def handle_unfinished_cmd(unfinished_cmd: Ec2OperationLog, cmd_to_run: str, curr
     return MessageGenerator().last_cmd_still_running(cmd, unfinished_cmd['started_at'], current_status).generate()
 
 
-def cmd_callback(cmd: str, instance_id: ObjectId, ec2_log_id: ObjectId, task: asyncio.Task):
-    logger.info(f'')
+def timeout_cmd_callback(cmd: str, ec2_log_id: ObjectId, task: asyncio.Task):
+    '''
+        callback for timeout command
+    '''
+    ec2_log: Ec2OperationLog = Ec2OperationLogRepo().find_by_id(ec2_log_id)
+    logger.info(
+        f'Command: {cmd} finished, task result: {task.result()}, time consumed: {(ec2_log["finished_at"] - ec2_log["started_at"]).seconds}')
 
 
 async def cmd_executor(cmds: list[str], cmd: str, expected_status: str | None, user_id: ObjectId, instance_operation: Callable[[ObjectId, ObjectId, ObjectId, ObjectId], str]):
     '''
-        execute
+        execute command
     '''
     assert_cmds_to_be_one(cmds)
     ec2_instance, ec2_status, unfinished_cmd = get_ec2_instance_status_and_unfinished_cmd(
@@ -263,7 +268,7 @@ async def cmd_executor(cmds: list[str], cmd: str, expected_status: str | None, u
     try:
         coro = instance_operation(
             instance_id, aws_crediential_id, ec2_log_id, user_id)
-        current_status = await async_race(coro, timeout(4.0), cancel_pending=False, callback=partial(cmd_callback, cmd=cmd, instance_id=instance_id, ec2_log_id=ec2_log_id))
+        current_status = await async_race(coro, timeout(4.0), cancel_pending=False, callback=partial(timeout_cmd_callback, cmd, ec2_log_id))
         res_msg = MessageGenerator().cmd_success(cmd, current_status)
         if cmd == 'status':
             res_msg.add_outline_token(
