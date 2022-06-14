@@ -253,6 +253,10 @@ def timeout_cmd_callback(cmd: str, ec2_log_id: ObjectId, task: asyncio.Task):
 async def cmd_executor(cmds: list[str], cmd: str, expected_status: str | None, user_id: ObjectId, instance_operation: Callable[[ObjectId, ObjectId, ObjectId, ObjectId], str]):
     '''
         execute command
+        cmds: input params
+        cmd: start | stop | status
+        expected_status: stopped | running | None
+        instance_operation: (instance_id, aws_crediential_id, ec2_log_id, user_id) -> coroutine[str]
     '''
     assert_cmds_to_be_one(cmds)
     ec2_instance, ec2_status, unfinished_cmd = get_ec2_instance_status_and_unfinished_cmd(
@@ -298,7 +302,7 @@ class Ec2Stop(AsyncBaseMessageHandler):
 
 class Ec2Alias(AsyncBaseMessageHandler):
     async def __call__(self, cmds: list[str]):
-        if len(cmds) != 2:
+        if len(cmds) > 2:
             raise InvalidCmd(
                 'ec2 alias: invalid input, expect <id | alias > <new alias>')
         identifier, newAlias = cmds
@@ -315,7 +319,9 @@ class Ec2Alias(AsyncBaseMessageHandler):
 
 class Ec2Cron(AsyncBaseMessageHandler):
     async def __call__(self, cmds: list[str]):
-        print('ec2 cron', cmds)
+        if len(cmds) != 2:
+            raise InvalidCmd(
+                'ec2 cron: invalid input, expect [id | alias ] <cron string>')
         return 'Not implemented'
 
 
