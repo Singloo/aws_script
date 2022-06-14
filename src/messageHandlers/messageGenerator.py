@@ -17,6 +17,12 @@ class MessageGenerator():
         self.messages.append(msg)
         return self
 
+    def __str__(self) -> str:
+        return self.generate()
+
+    def __repr__(self) -> str:
+        return f'{self.__class__.__name__} ({self.generate()})'
+
     @property
     def separator(self):
         self.messages.append('--------------------')
@@ -54,3 +60,6 @@ class MessageGenerator():
 
     def no_such_document(self, collection_name: str, *conditions: list[str]):
         return self._append_new_msg(f'No such document in: {collection_name}, queryed with: {conditions}')
+
+    def cmd_timeout(self, cmd: str, last_status: str):
+        return self._append_new_msg(f'Sorry, command: {cmd} didnt finish on time. Still running please check it out later. Instance last status: {last_status}')

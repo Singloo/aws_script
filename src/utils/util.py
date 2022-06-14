@@ -11,12 +11,16 @@ async def timeout(time: float = 2.3):
     raise TimeoutException
 
 
-async def async_race(*fs):
+async def async_race(*fs, cancel_pending=True, callback: Callable[[asyncio.Task]] | None = None):
     loop = asyncio.get_event_loop()
     tasks = [loop.create_task(f) for f in fs]
     done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
     for task in pending:
-        task.cancel()
+        if callback is not None:
+            task.add_done_callback(callback)
+            continue
+        if cancel_pending:
+            task.cancel()
     return [o.result() for o in done]
 
 T = TypeVar('T')

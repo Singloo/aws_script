@@ -22,9 +22,11 @@ import base64
 from .helper import test_aws_resource
 from .messageGenerator import MessageGenerator
 from bson.objectid import ObjectId
-from src.utils.util import async_race
+from src.utils.util import async_race, timeout
+from src.utils.exceptions import TimeoutException
 from .ec2HandlerHelper import get_ins_state_and_ip, update_log_and_instance_status, create_and_schedule_status_task
 from .ec2InstanceManager import getEc2Instance, getEc2InstanceWithCredentialId
+
 
 if TYPE_CHECKING:
     from mypy_boto3_ec2.client import EC2Client
@@ -210,6 +212,20 @@ _ec2_start = partial(_ec2_start_or_stop, 'start')
 _ec2_stop = partial(_ec2_start_or_stop, 'stop')
 
 
+async def _ec2_status(instance_id: ObjectId, aws_crediential_id: ObjectId, ec2_log_id: ObjectId, user_id: ObjectId):
+    async with getEc2InstanceWithCredentialId(instance_id, aws_crediential_id) as ins:
+        try:
+            ins_state, ip = await get_ins_state_and_ip(ins)
+            update_log_and_instance_status(
+                ec2_log_id, instance_id, ins_state, ip)
+            return ins_state
+        except Exception as e:
+            Ec2OperationLogRepo().error_operation(ec2_log_id, e)
+            logger.error(
+                f'[ec2 status error] instance_id: {instance_id} error: {e}')
+            return MessageGenerator().cmd_error('status', e).generate()
+
+
 def get_ec2_instance_status_and_unfinished_cmd(cmds: list[str]):
     ec2_instance = _get_ec2_instance(None if len(cmds) == 0 else cmds[0])
     ec2_status: Ec2Status = Ec2StatusRepo().find_by_id(ec2_instance['_id'])
@@ -225,7 +241,14 @@ def handle_unfinished_cmd(unfinished_cmd: Ec2OperationLog, cmd_to_run: str, curr
     return MessageGenerator().last_cmd_still_running(cmd, unfinished_cmd['started_at'], current_status).generate()
 
 
-async def cmd_exectuor(cmds: list[str], cmd: str, expected_status: str, user_id: ObjectId, instance_operation: Callable[[ObjectId, ObjectId, ObjectId, ObjectId], str]):
+def cmd_callback(cmd: str, instance_id: ObjectId, ec2_log_id: ObjectId, task: asyncio.Task):
+    logger.info(f'')
+
+
+async def cmd_executor(cmds: list[str], cmd: str, expected_status: str | None, user_id: ObjectId, instance_operation: Callable[[ObjectId, ObjectId, ObjectId, ObjectId], str]):
+    '''
+        execute
+    '''
     assert_cmds_to_be_one(cmds)
     ec2_instance, ec2_status, unfinished_cmd = get_ec2_instance_status_and_unfinished_cmd(
         cmds)
@@ -233,14 +256,21 @@ async def cmd_exectuor(cmds: list[str], cmd: str, expected_status: str, user_id:
     instance_id, aws_crediential_id = ec2_instance['_id'], ec2_instance['aws_crediential_id']
     if unfinished_cmd is not None:
         return handle_unfinished_cmd(unfinished_cmd, cmd, current_status)
-    if current_status != expected_status:
+    if expected_status != None and current_status != expected_status:
         return MessageGenerator().invalid_status_for_cmd(cmd, expected_status, current_status).generate()
     ec2_log_id = Ec2OperationLogRepo().insert(
         instance_id, cmd, user_id)
     try:
-        current_status = await instance_operation(
+        coro = instance_operation(
             instance_id, aws_crediential_id, ec2_log_id, user_id)
-        return MessageGenerator().cmd_success(cmd, current_status).generate()
+        current_status = await async_race(coro, timeout(4.0), cancel_pending=False, callback=partial(cmd_callback, cmd=cmd, instance_id=instance_id, ec2_log_id=ec2_log_id))
+        res_msg = MessageGenerator().cmd_success(cmd, current_status)
+        if cmd == 'status':
+            res_msg.add_outline_token(
+                ec2_instance['outline_token'], e).add_ip(ec2_status['ip'])
+        return res_msg.generate()
+    except TimeoutException:
+        return MessageGenerator().cmd_timeout(cmd, current_status).add_outline_token(ec2_instance['outline_token'], e).add_ip(ec2_status['ip']).generate()
     except ClientError as e:
         Ec2OperationLogRepo().error_operation(ec2_log_id, e)
         return MessageGenerator().cmd_error(cmd, e).generate()
@@ -248,36 +278,17 @@ async def cmd_exectuor(cmds: list[str], cmd: str, expected_status: str, user_id:
 
 class Ec2Start(AsyncBaseMessageHandler):
     async def __call__(self, cmds: list[str]):
-        return cmd_exectuor(cmds, 'start', 'stopped', self.user_id, _ec2_start)
+        return cmd_executor(cmds, 'start', 'stopped', self.user_id, _ec2_start)
 
 
 class Ec2StatusCmd(AsyncBaseMessageHandler):
     async def __call__(self, cmds: list[str]):
-        assert_cmds_to_be_one(cmds)
-        ec2_instance, ec2_status, unfinished_cmd = get_ec2_instance_status_and_unfinished_cmd(
-            cmds)
-        if unfinished_cmd is not None:
-            unfinished_cmd: Ec2OperationLog
-            cmd = unfinished_cmd['command']
-            if cmd == 'start':
-                return MessageGenerator().same_cmd_is_running(cmd, unfinished_cmd['started_at']).generate()
-            return MessageGenerator().last_cmd_still_running(cmd, unfinished_cmd['started_at'], ec2_status['status']).generate()
-        if ec2_status['status'] != 'stopped':
-            return MessageGenerator().invalid_status_for_cmd('start', 'stopped', ec2_status['status']).generate()
-        ec2_log_id = Ec2OperationLogRepo().insert(
-            ec2_instance['_id'], 'start', self.user_id)
-        try:
-            current_status = await _ec2_start(
-                ec2_instance['_id'], ec2_instance['aws_crediential_id'], ec2_log_id, self.user_id)
-            return MessageGenerator().cmd_success('start', current_status).generate()
-        except ClientError as e:
-            Ec2OperationLogRepo().error_operation(ec2_log_id, e)
-            return MessageGenerator().cmd_error('start', e)
+        return cmd_executor(cmds, 'status', None, self.user_id, _ec2_status)
 
 
 class Ec2Stop(AsyncBaseMessageHandler):
     async def __call__(self, cmds: list[str]):
-        return cmd_exectuor(cmds, 'stop', 'running', self.user_id, _ec2_stop)
+        return cmd_executor(cmds, 'stop', 'running', self.user_id, _ec2_stop)
 
 
 class Ec2Alias(AsyncBaseMessageHandler):
