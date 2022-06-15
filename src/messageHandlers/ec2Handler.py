@@ -317,11 +317,43 @@ class Ec2Alias(AsyncBaseMessageHandler):
         return f'Alias: {newAlias} already existed'
 
 
+def _ec2_cron_validate_cron_string(cron_str: str):
+    try:
+        hour, minute = cron_str.split(':')
+        valid_hour = int(hour) <= 23 and int(hour) >= 0
+        valid_minute = int(minute) <= 59 and int(minute) >= 0
+        if valid_hour is False or valid_minute is False:
+            raise InvalidCmd('ec2 cron: invalid cron string format')
+        return True
+    except Exception as e:
+        logger.info(f'[ec2 cron] invalid cron string {e}')
+        raise InvalidCmd('ec2 cron: invalid cron string format')
+
+
+def _ec2_cron_validate_cmd(cmd: str):
+    if cmd.strip().lower() not in ['start', 'stop']:
+        raise InvalidCmd(
+            'ec2 cron: invalid command, should be "start" or "stop"')
+    return True
+
+
+def _ec2_cron_validate_params(cmds: list[str]):
+    if len(cmds) not in [2, 3]:
+        raise InvalidCmd(
+            'ec2 cron: invalid input, expect [id | alias ] <cron string> <command> \ncron string: hour:minute e.g 23:30 hour:[0:23], minute:[0:59]\n command: start | stop')
+    if len(cmds) == 2:
+        cron_string, cmd = cmds
+
+
+def _ec2_cron_transform_params(cmds: list[str]):
+    pass
+
+
 class Ec2Cron(AsyncBaseMessageHandler):
     async def __call__(self, cmds: list[str]):
-        if len(cmds) != 2:
+        if len(cmds) not in [2, 3]:
             raise InvalidCmd(
-                'ec2 cron: invalid input, expect [id | alias ] <cron string>')
+                'ec2 cron: invalid input, expect [id | alias ] <cron string> <command> \ncron string: hour:minute e.g 23:30 hour:[0:23], minute:[0:59]\n command: start | stop')
         return 'Not implemented'
 
 
