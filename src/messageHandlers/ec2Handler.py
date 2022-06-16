@@ -324,7 +324,7 @@ def _ec2_cron_validate_cron_string(cron_str: str):
         valid_minute = int(minute) <= 59 and int(minute) >= 0
         if valid_hour is False or valid_minute is False:
             raise InvalidCmd('ec2 cron: invalid cron string format')
-        return True
+        return int(hour), int(minute)
     except Exception as e:
         logger.info(f'[ec2 cron] invalid cron string {e}')
         raise InvalidCmd('ec2 cron: invalid cron string format')
@@ -334,19 +334,24 @@ def _ec2_cron_validate_cmd(cmd: str):
     if cmd.strip().lower() not in ['start', 'stop']:
         raise InvalidCmd(
             'ec2 cron: invalid command, should be "start" or "stop"')
-    return True
+    return cmd
 
 
-def _ec2_cron_validate_params(cmds: list[str]):
+def _ec2_cron_validate_and_transform_params(cmds: list[str]):
     if len(cmds) not in [2, 3]:
         raise InvalidCmd(
             'ec2 cron: invalid input, expect [id | alias ] <cron string> <command> \ncron string: hour:minute e.g 23:30 hour:[0:23], minute:[0:59]\n command: start | stop')
     if len(cmds) == 2:
         cron_string, cmd = cmds
-
-
-def _ec2_cron_transform_params(cmds: list[str]):
-    pass
+        instance = Ec2InstanceRepo().get_default()
+    else:
+        vague_id, cron_string, cmd = cmds
+        instance = Ec2InstanceRepo().find_by_vague_id(vague_id)
+    if instance is None:
+        raise InvalidCmd('ec2 cron: no such instance')
+    cron_time = _ec2_cron_validate_cron_string(cron_string)
+    _cmd = _ec2_cron_validate_cmd(cmd)
+    return instance, cron_time, _cmd
 
 
 class Ec2Cron(AsyncBaseMessageHandler):
@@ -354,7 +359,9 @@ class Ec2Cron(AsyncBaseMessageHandler):
         if len(cmds) not in [2, 3]:
             raise InvalidCmd(
                 'ec2 cron: invalid input, expect [id | alias ] <cron string> <command> \ncron string: hour:minute e.g 23:30 hour:[0:23], minute:[0:59]\n command: start | stop')
-        return 'Not implemented'
+        instance, cron_time, _cmd = _ec2_cron_validate_and_transform_params(
+            cmds)
+        hour, minute = cron_time
 
 
 class Ec2Handler(AsyncBaseMessageHandler):
