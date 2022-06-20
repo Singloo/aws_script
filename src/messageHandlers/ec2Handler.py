@@ -4,16 +4,14 @@ from botocore.exceptions import ClientError
 from src.db.redis import json_save, json_get, CacheKeys
 from src.db.exceptions import ExceedMaximumNumber, NoSuchDocument
 import asyncio
-from typing import Callable, Coroutine, List, TYPE_CHECKING, Tuple
-from src.types import CachedData
-import aioboto3
+from typing import Callable, TYPE_CHECKING
 from src.types.type import Ec2Instance, Ec2OperationLog, Ec2Status
-from src.utils.constants import REGION_NAME, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, SS_PORT, SS_STR
 from . import AsyncBaseMessageHandler
 from .InputValidator import ValidatorManager, Validator, SessionExpired, ValidatorInvalidAndExceedMaximumTimes, ValidatorInvalidInput, SessionFinished, NoSuchSession
 from .exceptions import InvalidCmd
 from src.db.awsCrediential import AwsCredientialRepo
 from src.db.ec2Instance import Ec2InstanceRepo
+from src.db.ec2CronJob import Ec2CronRepo
 from src.utils.util import re_strict_match
 from src.db.ec2OperationLog import Ec2OperationLogRepo
 from src.db.ec2Status import Ec2StatusRepo
@@ -25,7 +23,7 @@ from bson.objectid import ObjectId
 from src.utils.util import async_race, timeout
 from src.utils.exceptions import TimeoutException
 from .ec2HandlerHelper import get_ins_state_and_ip, update_log_and_instance_status, create_and_schedule_status_task
-from .ec2InstanceManager import getEc2Instance, getEc2InstanceWithCredentialId
+from .ec2InstanceManager import getEc2InstanceWithCredentialId
 
 
 if TYPE_CHECKING:
@@ -318,6 +316,9 @@ class Ec2Alias(AsyncBaseMessageHandler):
 
 
 def _ec2_cron_validate_cron_string(cron_str: str):
+    '''
+        formate should be like 18:12
+    '''
     try:
         hour, minute = cron_str.split(':')
         valid_hour = int(hour) <= 23 and int(hour) >= 0
@@ -331,13 +332,19 @@ def _ec2_cron_validate_cron_string(cron_str: str):
 
 
 def _ec2_cron_validate_cmd(cmd: str):
+    '''
+        command should be either start or stop
+    '''
     if cmd.strip().lower() not in ['start', 'stop']:
         raise InvalidCmd(
             'ec2 cron: invalid command, should be "start" or "stop"')
     return cmd
 
 
-def _ec2_cron_validate_and_transform_params(cmds: list[str]):
+def _ec2_cron_validate_and_transform_params(cmds: list[str]) -> tuple[Ec2Instance, tuple[int, int], str]:
+    '''
+        validate params and transform it
+    '''
     if len(cmds) not in [2, 3]:
         raise InvalidCmd(
             'ec2 cron: invalid input, expect [id | alias ] <cron string> <command> \ncron string: hour:minute e.g 23:30 hour:[0:23], minute:[0:59]\n command: start | stop')
@@ -362,7 +369,10 @@ class Ec2Cron(AsyncBaseMessageHandler):
         instance, cron_time, _cmd = _ec2_cron_validate_and_transform_params(
             cmds)
         hour, minute = cron_time
-
+        existed = Ec2CronRepo().find_by_time(
+            instance['_id'], _cmd, hour, minute)
+        if existed is not None:
+            return MessageGenerator().existed('cron job')
 
 class Ec2Handler(AsyncBaseMessageHandler):
     @property

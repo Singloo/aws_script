@@ -18,7 +18,7 @@ class Ec2CronRepo(Mongo):
             'created_by': user_id
         }))
 
-    def find_by_time(self, instance_id: ObjectId, cmd: str, hour: int, minute: int):
+    def find_by_time(self, instance_id: ObjectId, cmd: str, hour: int, minute: int) -> Ec2Cron | None:
         return self.col.find_one({
             'ec2_id': instance_id,
             'commnand': cmd,
