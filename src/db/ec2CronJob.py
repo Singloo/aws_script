@@ -15,8 +15,18 @@ class Ec2CronRepo(Mongo):
             'command': cmd,
             'hour': hour,
             'minute': minute,
-            'created_by': user_id
+            'created_by': user_id,
+            'active': False
         }))
+
+    def active(self, _id: ObjectId):
+        return self.col.update_one({
+            '_id': _id
+        }, {
+            '$set': {
+                'active': True
+            }
+        }).modified_count > 0
 
     def find_by_time(self, instance_id: ObjectId, cmd: str, hour: int, minute: int) -> Ec2Cron | None:
         return self.col.find_one({

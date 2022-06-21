@@ -92,3 +92,4 @@ class Ec2Cron(MongoMetadata):
     created_by: ObjectId
     hour: int
     minute: int
+    active: bool
