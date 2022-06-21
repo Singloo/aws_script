@@ -185,12 +185,12 @@ async def _ec2_start_or_stop(cmd: str, instance_id: ObjectId, aws_crediential_id
             return MessageGenerator().cmd_error(cmd, e).generate()
 
 
-_ec2_start = partial(_ec2_start_or_stop, 'start')
+ec2_start = partial(_ec2_start_or_stop, 'start')
 
-_ec2_stop = partial(_ec2_start_or_stop, 'stop')
+ec2_stop = partial(_ec2_start_or_stop, 'stop')
 
 
-async def _ec2_status(instance_id: ObjectId, aws_crediential_id: ObjectId, ec2_log_id: ObjectId, user_id: ObjectId):
+async def ec2_status(instance_id: ObjectId, aws_crediential_id: ObjectId, ec2_log_id: ObjectId, user_id: ObjectId):
     async with getEc2InstanceWithCredentialId(instance_id, aws_crediential_id) as ins:
         try:
             ins_state, ip = await get_ins_state_and_ip(ins)
@@ -261,3 +261,49 @@ async def cmd_executor(cmds: list[str], cmd: str, expected_status: str | None, u
     except ClientError as e:
         Ec2OperationLogRepo().error_operation(ec2_log_id, e)
         return MessageGenerator().cmd_error(cmd, e).generate()
+
+
+def _ec2_cron_validate_cron_string(cron_str: str):
+    '''
+        formate should be like 18:12
+    '''
+    try:
+        hour, minute = cron_str.split(':')
+        valid_hour = int(hour) <= 23 and int(hour) >= 0
+        valid_minute = int(minute) <= 59 and int(minute) >= 0
+        if valid_hour is False or valid_minute is False:
+            raise InvalidCmd('ec2 cron: invalid cron string format')
+        return int(hour), int(minute)
+    except Exception as e:
+        logger.info(f'[ec2 cron] invalid cron string {e}')
+        raise InvalidCmd('ec2 cron: invalid cron string format')
+
+
+def _ec2_cron_validate_cmd(cmd: str):
+    '''
+        command should be either start or stop
+    '''
+    if cmd.strip().lower() not in ['start', 'stop']:
+        raise InvalidCmd(
+            'ec2 cron: invalid command, should be "start" or "stop"')
+    return cmd
+
+
+def ec2_cron_validate_and_transform_params(cmds: list[str]) -> tuple[Ec2Instance, tuple[int, int], str]:
+    '''
+        validate params and transform it
+    '''
+    if len(cmds) not in [2, 3]:
+        raise InvalidCmd(
+            'ec2 cron: invalid input, expect [id | alias ] <cron string> <command> \ncron string: hour:minute e.g 23:30 hour:[0:23], minute:[0:59]\n command: start | stop')
+    if len(cmds) == 2:
+        cron_string, cmd = cmds
+        instance = Ec2InstanceRepo().get_default()
+    else:
+        vague_id, cron_string, cmd = cmds
+        instance = Ec2InstanceRepo().find_by_vague_id(vague_id)
+    if instance is None:
+        raise InvalidCmd('ec2 cron: no such instance')
+    cron_time = _ec2_cron_validate_cron_string(cron_string)
+    _cmd = _ec2_cron_validate_cmd(cmd)
+    return instance, cron_time, _cmd
