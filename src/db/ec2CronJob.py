@@ -19,12 +19,13 @@ class Ec2CronRepo(Mongo):
             'active': False
         }))
 
-    def active(self, _id: ObjectId):
+    def active(self, _id: ObjectId, job_id: str):
         return self.col.update_one({
             '_id': _id
         }, {
             '$set': {
-                'active': True
+                'active': True,
+                'job_id': job_id
             }
         }).modified_count > 0
 
