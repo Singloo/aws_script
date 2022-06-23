@@ -16,7 +16,7 @@ from .helper import test_aws_resource
 from .messageGenerator import MessageGenerator
 from src.schedulers.scheduler import sched
 from apscheduler.job import Job
-from .ec2HandlerHelper import validate_outline, cmd_executor, ec2_start, ec2_status, ec2_stop, ec2_cron_validate_and_transform_params
+from .ec2HandlerHelper import validate_outline, cmd_executor, ec2_start, ec2_status, ec2_stop, ec2_cron_validate_and_transform_params, cmd_executor_sync
 
 if TYPE_CHECKING:
     from mypy_boto3_ec2.client import EC2Client
@@ -173,10 +173,17 @@ class Ec2Cron(AsyncBaseMessageHandler):
         if existed is not None:
             return MessageGenerator().existed('cron job')
         # insert into db set active false
-        Ec2CronRepo().insert(instance['_id'], _cmd, hour, minute, self.user_id)
+        ec2_cron_id = Ec2CronRepo().insert(
+            instance['_id'], _cmd, hour, minute, self.user_id)
         # schedule job
-        job: Job = sched.add_job()
+        CRON_PARAMS = {
+            'start': ([instance['_id']],  'start', 'stopped', self.user_id, ec2_start),
+            'stop': ([instance['_id']], 'stop', 'running', self.user_id, ec2_stop)
+        }
+        job: Job = sched.add_job(cmd_executor_sync, args=(
+            ec2_cron_id, *CRON_PARAMS[_cmd]), trigger='cron', hour=hour, minute=minute)
         # set cron job to active
+        Ec2CronRepo().active(ec2_cron_id, job.id)
 
 
 class Ec2Handler(AsyncBaseMessageHandler):

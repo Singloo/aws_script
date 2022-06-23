@@ -15,6 +15,7 @@ import base64
 from .exceptions import InvalidCmd
 from src.logger.logger import logger
 import re
+from src.db.ec2CronLog import Ec2CronLogRepo
 
 if TYPE_CHECKING:
     from mypy_boto3_ec2.client import EC2Client
@@ -154,7 +155,7 @@ def assert_cmds_to_be_one(cmds: list[str]):
     if len(cmds) >= 2:
         raise InvalidCmd(
             MessageGenerator().invalid_cmd(
-                'ec2 status', '<id | alias> or no input(The default Ec2 instance will be used)').generate())
+                'ec2 start/stop/status', '<id | alias> or no input(The default Ec2 instance will be used)').generate())
 
 
 def _get_ec2_instance(vague_id: str | None) -> Ec2Instance:
@@ -261,6 +262,18 @@ async def cmd_executor(cmds: list[str], cmd: str, expected_status: str | None, u
     except ClientError as e:
         Ec2OperationLogRepo().error_operation(ec2_log_id, e)
         return MessageGenerator().cmd_error(cmd, e).generate()
+
+
+def cmd_executor_sync(cron_id: ObjectId, cmds: list[str], cmd: str, expected_status: str | None, user_id: ObjectId, instance_operation: Callable[[ObjectId, ObjectId, ObjectId, ObjectId], str]):
+    try:
+        _id = Ec2CronLogRepo().insert(cron_id, cmd)
+        coro = cmd_executor(cmds, cmd, expected_status,
+                            user_id, instance_operation)
+        res = asyncio.run(coro)
+        Ec2CronLogRepo().finish(_id, res)
+    except Exception as e:
+        logger.error(f'[cmd_executor_sync error] {e}')
+        Ec2CronLogRepo().error(_id, e)
 
 
 def _ec2_cron_validate_cron_string(cron_str: str):

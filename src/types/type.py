@@ -1,4 +1,5 @@
 from datetime import datetime
+from sqlite3 import Date
 from typing import Any, TypedDict, Callable, Optional
 from xmlrpc.client import boolean
 from bson.objectid import ObjectId
@@ -94,3 +95,13 @@ class Ec2Cron(MongoMetadata):
     minute: int
     active: bool
     job_id: str
+
+
+class Ec2CronLog(MongoMetadata):
+    cron_id: ObjectId
+    command: str
+    started_at: Date
+    finished_at: Date
+    success: bool
+    error: Any | None
+    result: str

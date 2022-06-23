@@ -12,7 +12,7 @@ from src.db.ec2Status import Ec2StatusRepo
 CHINA_TIME = timezone('China/Shanghai')
 
 jobstores = {
-    'redis':  MongoDBJobStore(
+    'mongo':  MongoDBJobStore(
         client=Mongo()._mongoClient, database=MONGO_DBNAME, collection='schedules')
 }
 sched = BackgroundScheduler(jobstores=jobstores, timezone=CHINA_TIME)

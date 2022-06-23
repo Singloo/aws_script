@@ -17,7 +17,7 @@ class Ec2CronRepo(Mongo):
             'minute': minute,
             'created_by': user_id,
             'active': False
-        }))
+        })).inserted_id
 
     def active(self, _id: ObjectId, job_id: str):
         return self.col.update_one({
