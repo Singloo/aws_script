@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Any, TypedDict, Callable, Optional
+from xmlrpc.client import boolean
 from bson.objectid import ObjectId
 from enum import Enum
 
@@ -83,3 +84,33 @@ class Ec2OperationLog(MongoMetadata):
     finished_at: datetime | None
     status: Ec2OperationLogStatus
     error: Any | None
+
+
+class Ec2Cron(MongoMetadata):
+    ec2_id: ObjectId
+    command: str
+    created_by: ObjectId
+    hour: int
+    minute: int
+    active: bool
+    job_id: str
+
+
+class Ec2CronLog(MongoMetadata):
+    cron_id: ObjectId
+    command: str
+    started_at: datetime
+    finished_at: datetime
+    success: bool
+    error: Any | None
+    result: str
+
+
+class CommandLog(MongoMetadata):
+    command: str
+    triggered_by: ObjectId
+    started_at: datetime
+    finished_at: datetime
+    success: bool
+    error: Any | None
+    result: str

@@ -63,3 +63,6 @@ class MessageGenerator():
 
     def cmd_timeout(self, cmd: str, last_status: str):
         return self._append_new_msg(f'Sorry, command: {cmd} didnt finish on time. Still running please check it out later. Instance last status: {last_status}')
+
+    def existed(self, name: str):
+        return self._append_new_msg(f'Existed a same {name}, try other params.')
