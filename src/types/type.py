@@ -1,5 +1,4 @@
 from datetime import datetime
-from sqlite3 import Date
 from typing import Any, TypedDict, Callable, Optional
 from xmlrpc.client import boolean
 from bson.objectid import ObjectId
@@ -100,8 +99,18 @@ class Ec2Cron(MongoMetadata):
 class Ec2CronLog(MongoMetadata):
     cron_id: ObjectId
     command: str
-    started_at: Date
-    finished_at: Date
+    started_at: datetime
+    finished_at: datetime
+    success: bool
+    error: Any | None
+    result: str
+
+
+class CommandLog(MongoMetadata):
+    command: str
+    triggered_by: ObjectId
+    started_at: datetime
+    finished_at: datetime
     success: bool
     error: Any | None
     result: str

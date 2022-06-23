@@ -22,19 +22,19 @@ class Ec2CronLogRepo(Mongo):
         return self.col.update_one({
             '_id': _id
         }, {
-            '$set': {
+            '$set': self.add_updated_at({
                 'success': True,
                 'finished_at': datetime.now(),
                 'result': result
-            }
+            })
         })
 
     def error(self, _id: ObjectId, error: Any):
         return self.col.update_one({
             '_id': _id
         }, {
-            '$set': {
+            '$set': self.add_updated_at({
                 'error': error,
                 'finished_at': datetime.now()
-            }
+            })
         })

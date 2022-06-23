@@ -4,6 +4,8 @@ from .awsHandler import AwsHandler
 from .ec2Handler import Ec2Handler
 from src.db.redis import CacheKeys
 from .InputValidator import ValidatorManager, NoSuchSession
+from datetime import datetime
+from src.db.commandLog import CommandLogRepo
 
 
 def destruct_msg(msg: str) -> list[str]:
@@ -11,6 +13,18 @@ def destruct_msg(msg: str) -> list[str]:
 
 
 class InputMapperEntry(AsyncBaseMessageHandler):
+
+    async def __call__(self, cmds: list[str]):
+        started_at = datetime.now()
+        try:
+            res = await super().__call__(cmds)
+            CommandLogRepo().finish(
+                self.params['origin_input'], self.user_id, started_at, datetime.now(), res)
+        except Exception as e:
+            CommandLogRepo().error(
+                self.params['origin_input'], self.user_id, started_at, datetime.now(), e)
+            raise e
+
     @property
     def aws(self):
         return AwsHandler(self.params)
