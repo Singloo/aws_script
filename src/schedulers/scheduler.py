@@ -17,10 +17,3 @@ jobstores = {
 }
 sched = BackgroundScheduler(jobstores=jobstores, timezone=CHINA_TIME)
 
-
-def schedule_to_shut_down_ec2(instance_id):
-    # loop = asyncio.new_event_loop()
-    # task = loop.create_task(stop_ec2(instance_id))
-    success, resp = asyncio.run(stop_ec2(instance_id))
-    logger.info(f'[SCHEDULE] [Stop ec2] {success},{resp}')
-    # loop.close()
