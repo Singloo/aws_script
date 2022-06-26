@@ -89,7 +89,7 @@ class Ec2OperationLog(MongoMetadata):
 class Ec2Cron(MongoMetadata):
     ec2_id: ObjectId
     command: str
-    created_by: ObjectId
+    user_id: ObjectId
     hour: int
     minute: int
     active: bool

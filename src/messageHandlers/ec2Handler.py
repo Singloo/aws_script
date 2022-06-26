@@ -154,7 +154,23 @@ class Ec2Alias(AsyncBaseMessageHandler):
         return f'Alias: {newAlias} already existed'
 
 
+class Ec2CronList(AsyncBaseMessageHandler):
+    async def __call__(self, cmds: list[str]):
+        user_id = self.params['user_id']
+        inss = Ec2CronRepo().find_all(user_id)
+        if len(inss) == 0:
+            return 'No result\nLets start by [ec2 cron]'
+        msgGen = MessageGenerator().list_header('Ec2 cron list', len(inss))
+        for ins in inss:
+            msgGen.list_item(ins)
+        return MessageGenerator().generate()
+
+
 class Ec2Cron(AsyncBaseMessageHandler):
+    @property
+    def list(self):
+        return Ec2CronList(self.params)
+
     async def __call__(self, cmds: list[str]):
         # check param length
         if len(cmds) not in [2, 3]:

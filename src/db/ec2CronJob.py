@@ -15,7 +15,7 @@ class Ec2CronRepo(Mongo):
             'command': cmd,
             'hour': hour,
             'minute': minute,
-            'created_by': user_id,
+            'user_id': user_id,
             'active': False
         })).inserted_id
 
@@ -36,3 +36,9 @@ class Ec2CronRepo(Mongo):
             'hour': hour,
             'minute': minute
         })
+
+    def find_all(self, user_id: ObjectId):
+        cursor = self.col.find({'user_id': user_id}).sort({
+            'created_at': -1
+        })
+        return list(cursor)
