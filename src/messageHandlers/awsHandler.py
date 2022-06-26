@@ -53,12 +53,6 @@ AWS_LIST_HEADER = '      [id]         [AWS access key id]        [Aws secret acc
 
 
 class AwsList(AsyncBaseMessageHandler):
-    def __build_resp(self, instances: list[AwsCrediential]) -> str:
-        def _single_ins(data: tuple[int, AwsCrediential]):
-            idx, ins = data
-            return f'{idx} {ins["_id"]} {desensitize_data(ins["aws_access_key_id"], 4, 4)} {desensitize_data(ins["aws_secret_access_key"], 5, 5)} {ins["region_name"]} {ins["alias"]} {ins["created_at"]}'
-        return '\n'.join(map(_single_ins, enumerate(instances)))
-
     async def __call__(self, cmds: list[str]):
         user_id = self.params['user_id']
         inss = AwsCredientialRepo().find_all(user_id)

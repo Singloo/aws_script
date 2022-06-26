@@ -3,6 +3,7 @@ from src.types import Ec2Instance
 from bson.objectid import ObjectId
 from .exceptions import ExceedMaximumNumber
 from .helper import ensure_decrypted, is_int
+from functools import partial
 
 
 class Ec2InstanceRepo(Mongo):
@@ -51,3 +52,9 @@ class Ec2InstanceRepo(Mongo):
         return self.col.find_one({
             'default': True
         })
+
+    def find_all(self, user_id: ObjectId) -> list[Ec2Instance]:
+        cursor = self.col.find({'user_id': user_id}).sort({
+            'created_at': -1
+        })
+        return list(map(partial(ensure_decrypted, keys_to_decrypt=['instance_id']), list(cursor)))
