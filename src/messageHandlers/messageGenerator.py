@@ -23,7 +23,6 @@ class MessageGenerator():
     def __repr__(self) -> str:
         return f'{self.__class__.__name__} ({self.generate()})'
 
-    @property
     def separator(self):
         self.messages.append('--------------------')
         return self
@@ -66,3 +65,12 @@ class MessageGenerator():
 
     def existed(self, name: str):
         return self._append_new_msg(f'Existed a same {name}, try other params.')
+
+    def list_header(self, name: str, count: int):
+        return self._append_new_msg(f'List of {name}, total: {count}')
+
+    def list_item(self, item: dict[str, str], key_mapper: dict[str, str] = None):
+        for k, v in item.items:
+            self._append_new_msg(
+                f'{k if key_mapper is None else key_mapper.get(k,k)}: {v}')
+        return self.separator()

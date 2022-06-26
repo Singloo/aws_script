@@ -10,6 +10,8 @@ from src.types import AwsCrediential
 from src.utils.util import desensitize_data
 from .exceptions import InvalidCmd
 from .helper import test_aws_resource
+from .messageGenerator import MessageGenerator
+
 
 class AwsBind(AsyncBaseMessageHandler):
     async def __call__(self, input: str | None = None):
@@ -62,7 +64,12 @@ class AwsList(AsyncBaseMessageHandler):
         inss = AwsCredientialRepo().find_all(user_id)
         if len(inss) == 0:
             return 'No result\nLets start by [aws bind]'
-        return ''+self.__build_resp(inss)
+        msgGen =  MessageGenerator().list_header('Aws list', len(inss))
+        for ins in inss:
+            ins['aws_access_key_id'] = desensitize_data(ins["aws_access_key_id"], 4, 4)
+            ins['aws_secret_access_key'] = desensitize_data(ins["aws_secret_access_key"], 5, 5)
+            msgGen.list_item(ins)
+        return MessageGenerator().generate()
 
 
 class AwsRm(AsyncBaseMessageHandler):
@@ -76,7 +83,6 @@ class AwsRm(AsyncBaseMessageHandler):
             return 'No such instance'
         repo.delete_from_id(ins['_id'])
         return f'Success, instance: {identifier} has been removed.'
-
 
 
 class AwsHandler(AsyncBaseMessageHandler):

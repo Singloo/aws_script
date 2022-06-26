@@ -8,8 +8,6 @@ from src.messageHandlers.verification import wechat_verification
 from src.messageHandlers.InputMapper import InputMapperEntry
 from src.db.redis import json_get, CacheKeys
 from src.schedulers import sched
-from src.utils.util import async_race, timeout, TIME_OUT_MSG
-from src.types import CachedData
 from src.utils.constants import SENTRY_DSN
 import sentry_sdk
 from sentry_sdk.integrations.sanic import SanicIntegration
