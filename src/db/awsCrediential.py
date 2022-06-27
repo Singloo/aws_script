@@ -4,7 +4,7 @@ from src.types import AwsCrediential
 from .exceptions import ExceedMaximumNumber
 from .helper import ensure_decrypted, is_int
 from functools import partial
-
+from pymongo import IndexModel
 
 class AwsCredientialRepo(Mongo):
     @property
@@ -15,6 +15,11 @@ class AwsCredientialRepo(Mongo):
     def __init__(self):
         super().__init__()
         self.col = self.get_collection('awsCrediential')
+
+    def create_indexes(self):
+        index_models = [IndexModel(
+            [('alias', 1)], unique=True, sparse=True, background=True)]
+        self.col.create_indexes(index_models)
 
     def find_all(self, user_id: ObjectId) -> list[AwsCrediential]:
         cursor = self.col.find({'user_id': user_id}).sort({

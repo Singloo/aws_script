@@ -4,12 +4,18 @@ from bson.objectid import ObjectId
 from .exceptions import ExceedMaximumNumber
 from .helper import ensure_decrypted, is_int
 from functools import partial
+from pymongo import IndexModel
 
 
 class Ec2InstanceRepo(Mongo):
     def __init__(self):
         super().__init__()
         self.col = self.get_collection('ec2Instance')
+
+    def create_indexes(self):
+        index_models = [IndexModel(
+            [('alias', 1)], unique=True, sparse=True, background=True)]
+        self.col.create_indexes(index_models)
 
     def insert(self, doc: Ec2Instance, user_id: ObjectId) -> ObjectId:
         existing = self.col.count_documents({

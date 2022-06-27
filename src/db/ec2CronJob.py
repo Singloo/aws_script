@@ -2,12 +2,18 @@ from .mongo import Mongo
 from bson.objectid import ObjectId
 from .exceptions import ExceedMaximumNumber
 from src.types.type import Ec2Cron
+from pymongo import IndexModel
 
 
 class Ec2CronRepo(Mongo):
     def __init__(self):
         super().__init__()
         self.col = self.get_collection('ec2Cron')
+
+    def create_indexes(self):
+        index_models = [IndexModel(
+            [('alias', 1)], unique=True, sparse=True, background=True)]
+        self.col.create_indexes(index_models)
 
     def insert(self, instance_id: ObjectId, cmd: str, hour: int, minute: int, user_id: ObjectId):
         return self.col.insert_one(self.add_created_updated_at({
