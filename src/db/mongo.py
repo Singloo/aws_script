@@ -4,6 +4,7 @@ from src.utils.constants import MONGO_DBNAME, MONGO_HOST, MONGO_PASSWORD, MONGO_
 from bson.objectid import ObjectId
 from typing_extensions import Self
 from datetime import datetime
+from src.utils.util import generate_alias
 
 
 class Mongo(object):
@@ -65,3 +66,20 @@ class Mongo(object):
             self.params['user_id'], identifier)
         res = find_instance(*args)
         return res
+
+    def get_alias(self, user_id: ObjectId,):
+        aliases = generate_alias(2, 50)
+        res = self.check_available_alias(user_id, aliases)
+        if len(res) == 0:
+            return self.get_alias(user_id)
+        return res[0]
+
+    def check_available_alias(self, user_id: ObjectId, aliases: list[str]):
+        cursor = self.col.find({
+            'alias': {'$in': aliases},
+            'user_id': user_id
+        }, {
+            'alias': 1
+        })
+        existed_alias = [item['alias'] for item in cursor]
+        return list(set(aliases) - {*existed_alias})
