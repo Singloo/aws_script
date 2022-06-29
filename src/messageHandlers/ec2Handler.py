@@ -2,7 +2,6 @@ import re
 from src.logger import logger
 from src.db.redis import CacheKeys
 from src.db.exceptions import ExceedMaximumNumber
-from typing import TYPE_CHECKING
 from src.types.type import Ec2Instance
 from . import AsyncBaseMessageHandler
 from .InputValidator import ValidatorManager, Validator, SessionExpired, ValidatorInvalidAndExceedMaximumTimes, ValidatorInvalidInput, SessionFinished, NoSuchSession
@@ -10,24 +9,13 @@ from .exceptions import InvalidCmd
 from src.db.awsCrediential import AwsCredientialRepo
 from src.db.ec2Instance import Ec2InstanceRepo
 from src.db.ec2CronJob import Ec2CronRepo
-from src.utils.util import re_strict_match
+from src.utils.util import re_strict_match, desensitize_data
 from functools import partial
 from .helper import test_aws_resource
 from .messageGenerator import MessageGenerator
 from src.schedulers.scheduler import sched
 from apscheduler.job import Job
 from .ec2HandlerHelper import validate_outline, cmd_executor, ec2_start, ec2_status, ec2_stop, ec2_cron_validate_and_transform_params, cmd_executor_sync
-
-if TYPE_CHECKING:
-    from mypy_boto3_ec2.client import EC2Client
-    from mypy_boto3_ec2.service_resource import EC2ServiceResource, Instance
-    from mypy_boto3_ec2.type_defs import StartInstancesResultTypeDef, StopInstancesResultTypeDef
-else:
-    EC2Client = object
-    EC2ServiceResource = object
-    Instance = object
-    StartInstancesResultTypeDef = object
-
 
 EC2_VALIDATORS = [
     Validator(
@@ -109,7 +97,16 @@ class Ec2Bind(AsyncBaseMessageHandler):
 
 class Ec2List(AsyncBaseMessageHandler):
     async def __call__(self, cmds: list[str]):
-        print('ec2 list')
+        user_id = self.params['user_id']
+        inss = Ec2InstanceRepo().find_all(user_id)
+        if len(inss) == 0:
+            return 'No result\nLets start by [ec2 bind]'
+        msgGen = MessageGenerator().list_header('Ec2 list', len(inss))
+        for ins in inss:
+            ins['instance_id'] = desensitize_data(
+                ins["instance_id"], 4, 4)
+            msgGen.list_item(ins)
+        return MessageGenerator().generate()
 
 
 class Ec2Rm(AsyncBaseMessageHandler):
@@ -157,7 +154,23 @@ class Ec2Alias(AsyncBaseMessageHandler):
         return f'Alias: {newAlias} already existed'
 
 
+class Ec2CronList(AsyncBaseMessageHandler):
+    async def __call__(self, cmds: list[str]):
+        user_id = self.params['user_id']
+        inss = Ec2CronRepo().find_all(user_id)
+        if len(inss) == 0:
+            return 'No result\nLets start by [ec2 cron]'
+        msgGen = MessageGenerator().list_header('Ec2 cron list', len(inss))
+        for ins in inss:
+            msgGen.list_item(ins)
+        return MessageGenerator().generate()
+
+
 class Ec2Cron(AsyncBaseMessageHandler):
+    @property
+    def list(self):
+        return Ec2CronList(self.params)
+
     async def __call__(self, cmds: list[str]):
         # check param length
         if len(cmds) not in [2, 3]:
@@ -190,6 +203,10 @@ class Ec2Handler(AsyncBaseMessageHandler):
     @property
     def bind(self):
         return Ec2Bind(self.params)
+
+    @property
+    def list(self):
+        return Ec2List(self.params)
 
     @property
     def rm(self):

@@ -10,6 +10,8 @@ from src.types import AwsCrediential
 from src.utils.util import desensitize_data
 from .exceptions import InvalidCmd
 from .helper import test_aws_resource
+from .messageGenerator import MessageGenerator
+
 
 class AwsBind(AsyncBaseMessageHandler):
     async def __call__(self, input: str | None = None):
@@ -51,18 +53,17 @@ AWS_LIST_HEADER = '      [id]         [AWS access key id]        [Aws secret acc
 
 
 class AwsList(AsyncBaseMessageHandler):
-    def __build_resp(self, instances: list[AwsCrediential]) -> str:
-        def _single_ins(data: tuple[int, AwsCrediential]):
-            idx, ins = data
-            return f'{idx} {ins["_id"]} {desensitize_data(ins["aws_access_key_id"], 4, 4)} {desensitize_data(ins["aws_secret_access_key"], 5, 5)} {ins["region_name"]} {ins["alias"]} {ins["created_at"]}'
-        return '\n'.join(map(_single_ins, enumerate(instances)))
-
     async def __call__(self, cmds: list[str]):
         user_id = self.params['user_id']
         inss = AwsCredientialRepo().find_all(user_id)
         if len(inss) == 0:
             return 'No result\nLets start by [aws bind]'
-        return ''+self.__build_resp(inss)
+        msgGen =  MessageGenerator().list_header('Aws list', len(inss))
+        for ins in inss:
+            ins['aws_access_key_id'] = desensitize_data(ins["aws_access_key_id"], 4, 4)
+            ins['aws_secret_access_key'] = desensitize_data(ins["aws_secret_access_key"], 5, 5)
+            msgGen.list_item(ins)
+        return MessageGenerator().generate()
 
 
 class AwsRm(AsyncBaseMessageHandler):
@@ -76,7 +77,6 @@ class AwsRm(AsyncBaseMessageHandler):
             return 'No such instance'
         repo.delete_from_id(ins['_id'])
         return f'Success, instance: {identifier} has been removed.'
-
 
 
 class AwsHandler(AsyncBaseMessageHandler):
