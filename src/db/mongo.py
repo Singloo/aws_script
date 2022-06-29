@@ -71,7 +71,7 @@ class Mongo(object):
         res = find_instance(*args)
         return res
 
-    def get_alias(self, user_id: ObjectId,):
+    def get_alias(self, user_id: ObjectId) -> str:
         aliases = generate_alias(2, 50)
         res = self.check_available_alias(user_id, aliases)
         if len(res) == 0:

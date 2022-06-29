@@ -16,13 +16,15 @@ class Ec2CronRepo(Mongo):
         self.col.create_indexes(index_models)
 
     def insert(self, instance_id: ObjectId, cmd: str, hour: int, minute: int, user_id: ObjectId):
+        alias = self.get_alias(user_id)
         return self.col.insert_one(self.add_created_updated_at({
             'ec2_id': instance_id,
             'command': cmd,
             'hour': hour,
             'minute': minute,
             'user_id': user_id,
-            'active': False
+            'active': False,
+            'alias': alias,
         })).inserted_id
 
     def active(self, _id: ObjectId, job_id: str):
