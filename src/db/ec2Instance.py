@@ -43,7 +43,8 @@ class Ec2InstanceRepo(Mongo):
         })
         if res != None:
             return False
-        self.col.update_one({'_id': _id}, {'alias': newAlias})
+        self.col.update_one(
+            {'_id': _id}, {'$set': self.add_updated_at({'alias': newAlias})})
         return True
 
     def get_default(self):

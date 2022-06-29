@@ -25,7 +25,9 @@ class Ec2StatusRepo(Mongo):
         else:
             self.col.update_one({
                 'ec2_id': ec2_id
-            }, self.add_updated_at(doc))
+            }, {
+                '$set': self.add_updated_at(doc)
+            })
 
     def get_ec2_status(self, ec2_id: ObjectId) -> Ec2Status:
         return self.col.find_one({
@@ -39,6 +41,6 @@ class Ec2StatusRepo(Mongo):
         res: UpdateResult = self.col.update_one({
             'ec2_id': ec2_id,
         }, {
-            '$set': next_doc
+            '$set': self.add_updated_at(next_doc)
         })
         return res.modified_count

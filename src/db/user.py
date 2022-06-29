@@ -22,5 +22,7 @@ class UserRepo(Mongo):
         if res is None:
             return self.insert(doc)
         else:
-           self.col.update_one(doc, {'activated_at': datetime.now()})
+            self.col.update_one(doc, {
+                '$set': {'activated_at': datetime.now()}
+            })
         return res['_id']

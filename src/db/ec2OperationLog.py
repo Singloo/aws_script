@@ -32,8 +32,10 @@ class Ec2OperationLogRepo(Mongo):
         self.col.update_one({
             '_id': _id
         }, {
-            'status': 'exceed_max_runtime',
-            'finished_at': datetime.now()
+            '$set': {
+                'status': 'exceed_max_runtime',
+                'finished_at': datetime.now()
+            }
         })
 
     def error_operation(self, _id: ObjectId, error):
