@@ -23,16 +23,16 @@ class Ec2CronRepo(Mongo):
             'hour': hour,
             'minute': minute,
             'user_id': user_id,
-            'active': False,
+            'running': False,
             'alias': alias,
         })).inserted_id
 
-    def active(self, _id: ObjectId, job_id: str):
+    def run_job(self, _id: ObjectId, job_id: str):
         return self.col.update_one({
             '_id': _id
         }, {
             '$set': {
-                'active': True,
+                'running': True,
                 'job_id': job_id
             }
         }).modified_count > 0
@@ -43,7 +43,8 @@ class Ec2CronRepo(Mongo):
             'commnand': cmd,
             'hour': hour,
             'minute': minute,
-            'active': True
+            'active': True,
+            'running': True
         })
 
     def find_all(self, user_id: ObjectId):

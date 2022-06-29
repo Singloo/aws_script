@@ -195,8 +195,8 @@ class Ec2Cron(AsyncBaseMessageHandler):
         }
         job: Job = sched.add_job(cmd_executor_sync, args=(
             ec2_cron_id, *CRON_PARAMS[_cmd]), trigger='cron', hour=hour, minute=minute)
-        # set cron job to active
-        Ec2CronRepo().active(ec2_cron_id, job.id)
+        # set cron job to running
+        Ec2CronRepo().run_job(ec2_cron_id, job.id)
 
 
 class Ec2Handler(AsyncBaseMessageHandler):

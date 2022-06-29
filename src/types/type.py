@@ -97,6 +97,7 @@ class Ec2Cron(MongoMetadata):
     active: bool
     job_id: str
     alias: str
+    running: boolean
 
 
 class Ec2CronLog(MongoMetadata):
