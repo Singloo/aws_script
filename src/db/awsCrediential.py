@@ -33,15 +33,7 @@ class AwsCredientialRepo(Mongo):
         })
         if existing > 100:
             raise ExceedMaximumNumber
-        alias: str = '1'
-        if existing > 0:
-            cursor = self.col.find().sort({
-                'alias': -1
-            })
-            for doc in cursor:
-                if is_int(doc['alias']):
-                    alias = str(int(doc['alias']) + 1)
-                    break
+        alias: str = self.get_alias(user_id)
         res = self.col.insert_one(
             self.add_created_updated_at(
                 {**doc, 'user_id': user_id, 'alias': alias})

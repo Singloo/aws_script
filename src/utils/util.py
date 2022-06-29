@@ -4,6 +4,8 @@ from src.logger import logger
 import re
 from re import Pattern
 from .exceptions import TimeoutException
+import random
+import string
 
 
 async def timeout(time: float = 2.3):
@@ -68,3 +70,8 @@ def desensitize_data(string: str, max_star_count: None | int = None, max_visvibl
         star_count = max_star_count
     stars = '*'*star_count
     return string[:visible_count] + stars + string[str_len-visible_count:]
+
+
+def generate_alias(length: int = 2, n=10):
+    assert n > 0, 'n must be greater than 0'
+    return [''.join(random.choices(string.ascii_letters + string.digits, k=length)).lower() for _ in range(n)]

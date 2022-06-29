@@ -23,15 +23,7 @@ class Ec2InstanceRepo(Mongo):
         })
         if existing > 100:
             raise ExceedMaximumNumber
-        alias: str = '1'
-        if existing > 0:
-            cursor = self.col.find().sort({
-                'alias': -1
-            })
-            for doc in cursor:
-                if is_int(doc['alias']):
-                    alias = str(int(doc['alias']) + 1)
-                    break
+        alias = self.get_alias(user_id)
         res = self.col.insert_one(
             {**doc, 'user_id': user_id, 'alias': alias, 'default': alias == 1})
         return res.inserted_id
