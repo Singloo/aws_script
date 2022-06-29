@@ -42,6 +42,7 @@ class AwsCrediential(MongoMetadata):
     alias: str
     user_id: ObjectId
     encrypted: bool
+    active: boolean
 
 
 class Ec2Instance(MongoMetadata):
@@ -53,6 +54,7 @@ class Ec2Instance(MongoMetadata):
     user_id: ObjectId
     aws_crediential_id: ObjectId
     encrypted: bool
+    active: boolean
 
 
 class User(MongoMetadata):

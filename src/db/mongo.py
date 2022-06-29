@@ -26,8 +26,12 @@ class Mongo(object):
         pass
 
     def delete_from_id(self, _id: ObjectId):
-        return self.col.delete_one({
+        return self.col.update_one({
             '_id': _id
+        }, {
+            '$set': {
+                'active': False
+            }
         })
 
     def add_created_updated_at(self, doc: dict):
@@ -59,7 +63,8 @@ class Mongo(object):
     def find_by_alias(self, user_id: ObjectId, alias: str):
         res = self.col.find_one({
             'user_id': user_id,
-            'alias': alias
+            'alias': alias,
+            'active': True
         })
         return res
 
@@ -81,7 +86,8 @@ class Mongo(object):
     def check_available_alias(self, user_id: ObjectId, aliases: list[str]):
         cursor = self.col.find({
             'alias': {'$in': aliases},
-            'user_id': user_id
+            'user_id': user_id,
+            'active': True
         }, {
             'alias': 1
         })

@@ -6,6 +6,7 @@ from .helper import ensure_decrypted, is_int
 from functools import partial
 from pymongo import IndexModel
 
+
 class AwsCredientialRepo(Mongo):
     @property
     @classmethod
@@ -36,7 +37,7 @@ class AwsCredientialRepo(Mongo):
         alias: str = self.get_alias(user_id)
         res = self.col.insert_one(
             self.add_created_updated_at(
-                {**doc, 'user_id': user_id, 'alias': alias})
+                {**doc, 'user_id': user_id, 'alias': alias, 'active': True})
         )
         return res.inserted_id, alias
 

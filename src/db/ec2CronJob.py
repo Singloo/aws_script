@@ -42,7 +42,8 @@ class Ec2CronRepo(Mongo):
             'ec2_id': instance_id,
             'commnand': cmd,
             'hour': hour,
-            'minute': minute
+            'minute': minute,
+            'active': True
         })
 
     def find_all(self, user_id: ObjectId):
