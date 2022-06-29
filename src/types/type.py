@@ -90,11 +90,11 @@ class Ec2Cron(MongoMetadata):
     ec2_id: ObjectId
     command: str
     user_id: ObjectId
-    alias: str
     hour: int
     minute: int
     active: bool
     job_id: str
+    alias: str
 
 
 class Ec2CronLog(MongoMetadata):
