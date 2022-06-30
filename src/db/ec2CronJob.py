@@ -25,7 +25,7 @@ class Ec2CronRepo(Mongo):
             'user_id': user_id,
             'running': False,
             'alias': alias,
-        })).inserted_id
+        })).inserted_id, alias
 
     def run_job(self, _id: ObjectId, job_id: str):
         return self.col.update_one({

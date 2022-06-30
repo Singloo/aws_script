@@ -186,7 +186,7 @@ class Ec2Cron(AsyncBaseMessageHandler):
         if existed is not None:
             return MessageGenerator().existed('cron job')
         # insert into db set running false
-        ec2_cron_id = Ec2CronRepo().insert(
+        ec2_cron_id, alias = Ec2CronRepo().insert(
             instance['_id'], _cmd, hour, minute, self.user_id)
         # schedule job
         CRON_PARAMS = {
@@ -197,6 +197,7 @@ class Ec2Cron(AsyncBaseMessageHandler):
             ec2_cron_id, *CRON_PARAMS[_cmd]), trigger='cron', hour=hour, minute=minute)
         # set cron job to running
         Ec2CronRepo().run_job(ec2_cron_id, job.id)
+        return f'Successfully added a cron job [ID] {ec2_cron_id} [Alias] {alias}'
 
 
 class Ec2Handler(AsyncBaseMessageHandler):
