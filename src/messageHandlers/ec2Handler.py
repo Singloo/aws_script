@@ -166,10 +166,27 @@ class Ec2CronList(AsyncBaseMessageHandler):
         return MessageGenerator().generate()
 
 
+class Ec2CronRm(AsyncBaseMessageHandler):
+    async def __call__(self, cmds: list[str]):
+        if len(cmds) != 1:
+            raise InvalidCmd('ec2 cron rm: invalid input, expect id or alias')
+        identifier = cmds[0]
+        repo = Ec2CronRepo()
+        ins = repo.find_by_vague_id(identifier)
+        if ins is None:
+            return 'No such cron job'
+        repo.delete_from_id(ins['_id'])
+        return f'Success, cron job: {identifier} has been removed.'
+
+
 class Ec2Cron(AsyncBaseMessageHandler):
     @property
     def list(self):
         return Ec2CronList(self.params)
+
+    @property
+    def rm(self):
+        return Ec2CronRm(self.params)
 
     async def __call__(self, cmds: list[str]):
         # check param length
