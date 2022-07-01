@@ -23,16 +23,16 @@ class Ec2CronRepo(Mongo):
             'hour': hour,
             'minute': minute,
             'user_id': user_id,
-            'active': False,
+            'running': False,
             'alias': alias,
-        })).inserted_id
+        })).inserted_id, alias
 
-    def active(self, _id: ObjectId, job_id: str):
+    def run_job(self, _id: ObjectId, job_id: str):
         return self.col.update_one({
             '_id': _id
         }, {
             '$set': {
-                'active': True,
+                'running': True,
                 'job_id': job_id
             }
         }).modified_count > 0
@@ -42,11 +42,13 @@ class Ec2CronRepo(Mongo):
             'ec2_id': instance_id,
             'commnand': cmd,
             'hour': hour,
-            'minute': minute
+            'minute': minute,
+            'active': True,
+            'running': True
         })
 
     def find_all(self, user_id: ObjectId):
-        cursor = self.col.find({'user_id': user_id}).sort({
+        cursor = self.col.find({'user_id': user_id, 'active': True}).sort({
             'created_at': -1
         })
         return list(cursor)

@@ -18,7 +18,8 @@ class Ec2StatusRepo(Mongo):
             'modified_by': user_id
         }
         res = self.col.find_one({
-            'ec2_id': ec2_id
+            'ec2_id': ec2_id,
+            'active': True
         })
         if res is None:
             self.col.insert_one(self.add_created_updated_at(doc))
@@ -31,7 +32,8 @@ class Ec2StatusRepo(Mongo):
 
     def get_ec2_status(self, ec2_id: ObjectId) -> Ec2Status:
         return self.col.find_one({
-            'ec2_id': ec2_id
+            'ec2_id': ec2_id,
+            'active': True
         })
 
     def update_status(self, ec2_id: ObjectId, status: str, ip: str | None = None):

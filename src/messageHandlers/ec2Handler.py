@@ -166,10 +166,27 @@ class Ec2CronList(AsyncBaseMessageHandler):
         return MessageGenerator().generate()
 
 
+class Ec2CronRm(AsyncBaseMessageHandler):
+    async def __call__(self, cmds: list[str]):
+        if len(cmds) != 1:
+            raise InvalidCmd('ec2 cron rm: invalid input, expect id or alias')
+        identifier = cmds[0]
+        repo = Ec2CronRepo()
+        ins = repo.find_by_vague_id(identifier)
+        if ins is None:
+            return 'No such cron job'
+        repo.delete_from_id(ins['_id'])
+        return f'Success, cron job: {identifier} has been removed.'
+
+
 class Ec2Cron(AsyncBaseMessageHandler):
     @property
     def list(self):
         return Ec2CronList(self.params)
+
+    @property
+    def rm(self):
+        return Ec2CronRm(self.params)
 
     async def __call__(self, cmds: list[str]):
         # check param length
@@ -185,8 +202,8 @@ class Ec2Cron(AsyncBaseMessageHandler):
             instance['_id'], _cmd, hour, minute)
         if existed is not None:
             return MessageGenerator().existed('cron job')
-        # insert into db set active false
-        ec2_cron_id = Ec2CronRepo().insert(
+        # insert into db set running false
+        ec2_cron_id, alias = Ec2CronRepo().insert(
             instance['_id'], _cmd, hour, minute, self.user_id)
         # schedule job
         CRON_PARAMS = {
@@ -195,8 +212,9 @@ class Ec2Cron(AsyncBaseMessageHandler):
         }
         job: Job = sched.add_job(cmd_executor_sync, args=(
             ec2_cron_id, *CRON_PARAMS[_cmd]), trigger='cron', hour=hour, minute=minute)
-        # set cron job to active
-        Ec2CronRepo().active(ec2_cron_id, job.id)
+        # set cron job to running
+        Ec2CronRepo().run_job(ec2_cron_id, job.id)
+        return f'Successfully added a cron job [ID] {ec2_cron_id} [Alias] {alias}'
 
 
 class Ec2Handler(AsyncBaseMessageHandler):

@@ -6,6 +6,7 @@ from .helper import ensure_decrypted, is_int
 from functools import partial
 from pymongo import IndexModel
 
+
 class AwsCredientialRepo(Mongo):
     @property
     @classmethod
@@ -22,7 +23,7 @@ class AwsCredientialRepo(Mongo):
         self.col.create_indexes(index_models)
 
     def find_all(self, user_id: ObjectId) -> list[AwsCrediential]:
-        cursor = self.col.find({'user_id': user_id}).sort({
+        cursor = self.col.find({'user_id': user_id, 'active': True}).sort({
             'created_at': -1
         })
         return list(map(partial(ensure_decrypted, keys_to_decrypt=['aws_access_key_id', 'aws_secret_access_key']), list(cursor)))
@@ -36,7 +37,7 @@ class AwsCredientialRepo(Mongo):
         alias: str = self.get_alias(user_id)
         res = self.col.insert_one(
             self.add_created_updated_at(
-                {**doc, 'user_id': user_id, 'alias': alias})
+                {**doc, 'user_id': user_id, 'alias': alias, 'active': True})
         )
         return res.inserted_id, alias
 

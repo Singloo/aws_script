@@ -37,10 +37,7 @@ class Ec2InstanceRepo(Mongo):
         return ensure_decrypted(res, ['instance_id']) if res != None else None
 
     def update_alias(self, _id: ObjectId, user_id: ObjectId, newAlias: str):
-        res = self.col.find_one({
-            'user_id': user_id,
-            'alias': newAlias
-        })
+        res = super().find_by_alias(user_id, newAlias)
         if res != None:
             return False
         self.col.update_one(
@@ -53,7 +50,7 @@ class Ec2InstanceRepo(Mongo):
         })
 
     def find_all(self, user_id: ObjectId) -> list[Ec2Instance]:
-        cursor = self.col.find({'user_id': user_id}).sort({
+        cursor = self.col.find({'user_id': user_id, 'active': True}).sort({
             'created_at': -1
         })
         return list(map(partial(ensure_decrypted, keys_to_decrypt=['instance_id']), list(cursor)))
