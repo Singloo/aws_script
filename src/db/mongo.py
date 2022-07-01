@@ -11,7 +11,7 @@ class Mongo(object):
     __instance: Self
 
     def __new__(cls: type[Self]) -> Self:
-        if cls.__instance is None:
+        if getattr(cls, '__instance', None) is None:
             cls.__instance = object.__new__(cls)
         return cls.__instance
 

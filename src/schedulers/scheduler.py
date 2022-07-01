@@ -5,11 +5,10 @@ from src.logger import logger
 from src.utils.constants import MONGO_DBNAME
 from src.db.mongo import Mongo
 
-CHINA_TIME = timezone('China/Shanghai')
+CHINA_TIME = timezone('Asia/Shanghai')
 
 jobstores = {
     'mongo':  MongoDBJobStore(
         client=Mongo()._mongoClient, database=MONGO_DBNAME, collection='schedules')
 }
 sched = BackgroundScheduler(jobstores=jobstores, timezone=CHINA_TIME)
-
