@@ -13,7 +13,7 @@ async def timeout(time: float = 2.3):
     raise TimeoutException
 
 
-async def async_race(*fs, cancel_pending=True, callback: Callable[[asyncio.Task]] | None = None):
+async def async_race(*fs, cancel_pending=True, callback: Callable[[asyncio.Task],Any] | None = None):
     loop = asyncio.get_event_loop()
     tasks = [loop.create_task(f) for f in fs]
     done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)

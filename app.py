@@ -6,7 +6,6 @@ import src.messageHandlers.receive as receive
 import src.messageHandlers.reply as reply
 from src.messageHandlers.verification import wechat_verification
 from src.messageHandlers.InputMapper import InputMapperEntry
-from src.db.redis import json_get, CacheKeys
 from src.schedulers import sched
 from src.utils.constants import SENTRY_DSN
 import sentry_sdk
@@ -34,8 +33,6 @@ def on_exit():
 @app.post('/wx')
 async def main_post(request: Request) -> HTTPResponse:
     recMsg = receive.parse_xml(request.body)
-    cached_data = await json_get(CacheKeys.userdata(recMsg.FromUserName))
-    logger.info(f'[user cached data] {cached_data}')
     logger.info(
         f'[content] {recMsg.Content}, [user] {recMsg.FromUserName} [msgId] {recMsg.MsgId} [type] {recMsg.MsgType}')
     if isinstance(recMsg, receive.Msg) and recMsg.MsgType == 'text':
@@ -47,7 +44,7 @@ async def main_post(request: Request) -> HTTPResponse:
             'user_id': user_id,
             'origin_input':recMsg.Content
         })(recMsg.Content.split(' '))
-        logger.info(f'[{recMsg.FromUserName}] reply ready')
+        logger.info(f'[{recMsg.FromUserName}] [replyMsg] {content}')
         replyMsg = reply.TextMsg(toUser, fromUser, content)
         await request.respond(text(replyMsg.send()))
     else:
