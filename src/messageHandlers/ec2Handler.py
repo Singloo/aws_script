@@ -16,6 +16,7 @@ from .messageGenerator import MessageGenerator
 from src.schedulers.scheduler import sched
 from apscheduler.job import Job
 from .ec2HandlerHelper import validate_outline, cmd_executor, ec2_start, ec2_status, ec2_stop, ec2_cron_validate_and_transform_params, cmd_executor_sync
+from typing import List
 
 EC2_VALIDATORS = [
     Validator(
@@ -106,7 +107,7 @@ class Ec2List(AsyncBaseMessageHandler):
             ins['instance_id'] = desensitize_data(
                 ins["instance_id"], 4, 4)
             msgGen.list_item(ins)
-        return MessageGenerator().generate()
+        return msgGen.generate()
 
 
 class Ec2Rm(AsyncBaseMessageHandler):
@@ -156,14 +157,14 @@ class Ec2Alias(AsyncBaseMessageHandler):
 
 class Ec2CronList(AsyncBaseMessageHandler):
     async def __call__(self, cmds: list[str]):
-        user_id = self.params['user_id']
+        user_id = self.user_id
         inss = Ec2CronRepo().find_all(user_id)
         if len(inss) == 0:
             return 'No result\nLets start by [ec2 cron]'
         msgGen = MessageGenerator().list_header('Ec2 cron list', len(inss))
         for ins in inss:
             msgGen.list_item(ins)
-        return MessageGenerator().generate()
+        return msgGen.generate()
 
 
 class Ec2CronRm(AsyncBaseMessageHandler):
@@ -180,14 +181,6 @@ class Ec2CronRm(AsyncBaseMessageHandler):
 
 
 class Ec2Cron(AsyncBaseMessageHandler):
-    @property
-    def list(self):
-        return Ec2CronList(self.params)
-
-    @property
-    def rm(self):
-        return Ec2CronRm(self.params)
-
     async def __call__(self, cmds: list[str]):
         # check param length
         if len(cmds) not in [2, 3]:
@@ -215,6 +208,14 @@ class Ec2Cron(AsyncBaseMessageHandler):
         # set cron job to running
         Ec2CronRepo().run_job(ec2_cron_id, job.id)
         return f'Successfully added a cron job [ID] {ec2_cron_id} [Alias] {alias}'
+
+    @property
+    def list(self):
+        return Ec2CronList(self.params)
+
+    @property
+    def rm(self):
+        return Ec2CronRm(self.params)
 
 
 class Ec2Handler(AsyncBaseMessageHandler):

@@ -58,12 +58,14 @@ class AwsList(AsyncBaseMessageHandler):
         inss = AwsCredientialRepo().find_all(user_id)
         if len(inss) == 0:
             return 'No result\nLets start by [aws bind]'
-        msgGen =  MessageGenerator().list_header('Aws list', len(inss))
+        msgGen = MessageGenerator().list_header('Aws list', len(inss))
         for ins in inss:
-            ins['aws_access_key_id'] = desensitize_data(ins["aws_access_key_id"], 4, 4)
-            ins['aws_secret_access_key'] = desensitize_data(ins["aws_secret_access_key"], 5, 5)
+            ins['aws_access_key_id'] = desensitize_data(
+                ins["aws_access_key_id"], 4, 4)
+            ins['aws_secret_access_key'] = desensitize_data(
+                ins["aws_secret_access_key"], 5, 5)
             msgGen.list_item(ins)
-        return MessageGenerator().generate()
+        return msgGen.generate()
 
 
 class AwsRm(AsyncBaseMessageHandler):
