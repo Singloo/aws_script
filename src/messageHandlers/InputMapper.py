@@ -1,5 +1,5 @@
 from typing import Any
-from . import AsyncBaseMessageHandler
+from . import AsyncBaseMessageHandler, NoSuchHandler
 from .awsHandler import AwsHandler
 from .ec2Handler import Ec2Handler
 from src.db.redis import CacheKeys
@@ -21,6 +21,8 @@ class InputMapperEntry(AsyncBaseMessageHandler):
             CommandLogRepo().finish(
                 self.params['origin_input'], self.user_id, started_at, datetime.now(), res)
             return res
+        except NoSuchHandler:
+            return 'What?'
         except Exception as e:
             CommandLogRepo().error(
                 self.params['origin_input'], self.user_id, started_at, datetime.now(), e)
@@ -40,7 +42,7 @@ class InputMapperEntry(AsyncBaseMessageHandler):
                 CacheKeys.aws_validator_key(self.params.get('user_id')))
             return await self.aws.bind(self.params.get('origin_input'))
         except NoSuchSession:
-            return None
+            raise NoSuchHandler
 
     async def _fallback(self, cmds: list[str]):
         res1 = await self._tryAwsBind()
