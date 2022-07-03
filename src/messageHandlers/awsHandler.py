@@ -114,14 +114,14 @@ AWS_VALIDATORS: list[Validator] = [
         encrypt=True
     ),
     Validator(
-        prompt='Please input <aws secret access key>',
+        prompt='Great, now please input <aws secret access key>',
         invalid_prompt='aws secret access key is wrong',
         attribute_name='aws_secret_access_key',
         validator=partial(re_test, pattern='^[a-zA-Z0-9]{40}$'),
         encrypt=True
     ),
     Validator(
-        prompt='Please input <region name>',
+        prompt='Last step, please input <region name>',
         invalid_prompt='region name is invalid',
         attribute_name='region_name',
         validator=partial(re_strict_match, pattern=region_regex_str)

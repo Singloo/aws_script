@@ -27,7 +27,7 @@ EC2_VALIDATORS = [
         encrypt=True
     ),
     Validator(
-        prompt='Please input outline token(optional), if you want to skip this step, please input: skip',
+        prompt='Awesome, please input outline token(optional), if you want to skip this step, please input: skip',
         invalid_prompt='Invalid outline token',
         attribute_name='outline_token',
         validator=validate_outline
