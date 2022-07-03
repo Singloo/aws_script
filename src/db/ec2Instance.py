@@ -51,7 +51,7 @@ class Ec2InstanceRepo(Mongo):
         })
 
     def find_all(self, user_id: ObjectId) -> list[Ec2Instance]:
-        cursor = self.col.find({'user_id': user_id, 'active': True}).sort({
+        cursor = self.col.find({'user_id': user_id, 'active': True}).sort([{
             'created_at': -1
-        })
+        }])
         return list(map(partial(ensure_decrypted, keys_to_decrypt=['instance_id']), list(cursor)))
