@@ -20,6 +20,7 @@ class InputMapperEntry(AsyncBaseMessageHandler):
             res = await super().__call__(cmds)
             CommandLogRepo().finish(
                 self.params['origin_input'], self.user_id, started_at, datetime.now(), res)
+            return res
         except Exception as e:
             CommandLogRepo().error(
                 self.params['origin_input'], self.user_id, started_at, datetime.now(), e)

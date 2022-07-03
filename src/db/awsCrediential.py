@@ -24,9 +24,9 @@ class AwsCredientialRepo(Mongo):
         self.col.create_indexes(index_models)
 
     def find_all(self, user_id: ObjectId) -> list[AwsCrediential]:
-        cursor = self.col.find({'user_id': user_id, 'active': True}).sort([{
-            'created_at': -1
-        }])
+        cursor = self.col.find({'user_id': user_id, 'active': True}).sort(
+            [('created_at', -1)])
+        return list(cursor)
         return list(map(partial(ensure_decrypted, keys_to_decrypt=['aws_access_key_id', 'aws_secret_access_key']), list(cursor)))
 
     def insert(self, doc: AwsCrediential, user_id: ObjectId) -> tuple[ObjectId, str]:

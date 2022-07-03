@@ -49,7 +49,6 @@ class Ec2CronRepo(Mongo):
         })
 
     def find_all(self, user_id: ObjectId):
-        cursor = self.col.find({'user_id': user_id, 'active': True}).sort([{
-            'created_at': -1
-        }])
+        cursor = self.col.find({'user_id': user_id, 'active': True}).sort(
+            [('created_at', -1)])
         return list(cursor)

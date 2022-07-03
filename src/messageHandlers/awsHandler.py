@@ -1,3 +1,4 @@
+from asyncio.log import logger
 from . import AsyncBaseMessageHandler
 from .InputValidator import ValidatorManager, Validator, SessionExpired, ValidatorInvalidAndExceedMaximumTimes, ValidatorInvalidInput, SessionFinished, NoSuchSession
 from functools import partial
@@ -49,12 +50,10 @@ class AwsBind(AsyncBaseMessageHandler):
             return 'Sorry, you cannot bind more AWS crediential(maximum 100)'
 
 
-AWS_LIST_HEADER = '      [id]         [AWS access key id]        [Aws secret access key id]       [Region name]      [Alias]       [Created at]'
-
-
 class AwsList(AsyncBaseMessageHandler):
     async def __call__(self, cmds: list[str]):
-        user_id = self.params['user_id']
+        logger.info(f'[aws list]: {self.user_id}')
+        user_id = self.user_id
         inss = AwsCredientialRepo().find_all(user_id)
         if len(inss) == 0:
             return 'No result\nLets start by [aws bind]'

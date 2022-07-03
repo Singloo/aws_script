@@ -65,7 +65,7 @@ class Ec2OperationLogRepo(Mongo):
             'ec2_id': ec2_id,
             'success': False,
             'status': 'pending'
-        }).sort({'started_at': -1})
+        }).sort([('started_at', -1)])
         unfinshed_cmds: list[Ec2OperationLog] = []
         for operation_log in cursor:
             operation_log: Ec2OperationLog
