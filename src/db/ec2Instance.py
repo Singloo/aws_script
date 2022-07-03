@@ -11,10 +11,11 @@ class Ec2InstanceRepo(Mongo):
     def __init__(self):
         super().__init__()
         self.col = self.get_collection('ec2Instance')
+        self.create_indexes()
 
     def create_indexes(self):
         index_models = [IndexModel(
-            [('alias', 1)], unique=True, sparse=True, background=True)]
+            [('alias', 1)],  background=True)]
         self.col.create_indexes(index_models)
 
     def insert(self, doc: Ec2Instance, user_id: ObjectId) -> ObjectId:

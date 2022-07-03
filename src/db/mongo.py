@@ -20,7 +20,6 @@ class Mongo(object):
         self.db: Database
         self.connect()
         self.col: Collection
-        self.create_indexes()
 
     def create_indexes(self):
         pass
