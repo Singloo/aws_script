@@ -36,15 +36,20 @@ class InputMapperEntry(AsyncBaseMessageHandler):
     def ec2(self):
         return Ec2Handler(self.params)
 
-    async def _tryAwsBind(self):
+    async def _tryBind(self):
+        aws_cache_key = CacheKeys.aws_validator_key(self.user_id)
+        ec2_cache_key = CacheKeys.ec2_validator_key(self.user_id)
         try:
-            session = await ValidatorManager.load_validator(
-                CacheKeys.aws_validator_key(self.params.get('user_id')))
+
+            await ValidatorManager.load_validator(aws_cache_key)
             return await self.aws.bind(self.params.get('origin_input'))
         except NoSuchSession:
-            raise NoSuchHandler
+            try:
+                return await ValidatorManager.load_validator(ec2_cache_key)
+            except NoSuchSession:
+                raise NoSuchHandler
 
     async def _fallback(self, cmds: list[str]):
-        res1 = await self._tryAwsBind()
+        res1 = await self._tryBind()
         if res1:
             return res1
