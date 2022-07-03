@@ -53,7 +53,7 @@ class Ec2Bind(AsyncBaseMessageHandler):
         uniq_key = CacheKeys.ec2_validator_key(self.params.get('user_id'))
         try:
             vm: ValidatorManager
-            vm = ValidatorManager.load_validator(uniq_key)
+            vm = await ValidatorManager.load_validator(uniq_key)
             if vm is None:
                 if len(cmds) != 1:
                     raise InvalidCmd(
@@ -69,7 +69,7 @@ class Ec2Bind(AsyncBaseMessageHandler):
             return vm.next(cmds[0])
 
         except SessionFinished:
-            vm = ValidatorManager.load_validator(uniq_key)
+            vm = await ValidatorManager.load_validator(uniq_key)
             data = vm.collect()['data']
             aws_crediential_id = vm.collect(
             )['other_args']['aws_crediential_id']

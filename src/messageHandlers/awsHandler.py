@@ -23,10 +23,10 @@ class AwsBind(AsyncBaseMessageHandler):
                 vm = ValidatorManager.init_db_input_validator(
                     AWS_VALIDATORS, uniq_key, 'awsCrediential')
             else:
-                vm = ValidatorManager.load_validator(uniq_key)
+                vm = await ValidatorManager.load_validator(uniq_key)
             return await vm.next(input)
         except SessionFinished:
-            vm = ValidatorManager.load_validator(uniq_key)
+            vm = await ValidatorManager.load_validator(uniq_key)
             data = vm.collect()['data']
             col_name = vm.collect()['other_args']['col_name']
             res = await test_aws_resource(

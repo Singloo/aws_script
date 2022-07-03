@@ -36,7 +36,7 @@ class InputMapperEntry(AsyncBaseMessageHandler):
 
     async def _tryAwsBind(self):
         try:
-            session = ValidatorManager.load_validator(
+            session = await ValidatorManager.load_validator(
                 CacheKeys.aws_validator_key(self.params.get('user_id')))
             return await self.aws.bind(self.params.get('origin_input'))
         except NoSuchSession:
