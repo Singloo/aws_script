@@ -67,13 +67,12 @@ class Mongo(object):
         })
         return res
 
-    def find_by_vague_id(self, identifier: str):
+    def find_by_vague_id(self, identifier: str, user_id: ObjectId):
         is_object_id = ObjectId.is_valid(identifier)
-        find_instance = self.find_by_id if is_object_id else self.find_by_alias
-        args = (ObjectId(identifier),) if is_object_id else (
-            self.params['user_id'], identifier)
-        res = find_instance(*args)
-        return res
+        if is_object_id:
+            return self.find_by_id(ObjectId(identifier))
+        else:
+            return self.find_by_alias(user_id, identifier)
 
     def get_alias(self, user_id: ObjectId) -> str:
         aliases = generate_alias(2, 50)

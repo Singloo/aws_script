@@ -76,7 +76,7 @@ class AwsRm(AsyncBaseMessageHandler):
             raise InvalidCmd('aws rm: invalid input, expect id or alias')
         identifier = cmds[0]
         repo = AwsCredientialRepo()
-        ins = repo.find_by_vague_id(identifier)
+        ins = repo.find_by_vague_id(identifier, self.user_id)
         if ins is None:
             return 'No such instance'
         repo.delete_from_id(ins['_id'])

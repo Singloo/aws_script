@@ -118,3 +118,4 @@ class CommandLog(MongoMetadata):
     success: bool
     error: Any | None
     result: str
+    trace_info: str | None

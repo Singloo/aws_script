@@ -51,23 +51,23 @@ class Ec2Bind(AsyncBaseMessageHandler):
 
     async def __call__(self, cmds: list[str]):
         uniq_key = CacheKeys.ec2_validator_key(self.params.get('user_id'))
+        if len(cmds) != 1:
+            raise InvalidCmd(
+                'ec2 bind: invalid input, expect aws credential id or alias provided')
         try:
             vm: ValidatorManager
             try:
                 vm = await ValidatorManager.load_validator(uniq_key)
+                return await vm.next(cmds[0])
             except NoSuchSession:
-                if len(cmds) != 1:
-                    raise InvalidCmd(
-                        'ec2 bind: invalid input, expect aws credential id or alias provided')
                 identifier = cmds[0]
-                ins = AwsCredientialRepo().find_by_vague_id(identifier)
+                ins = AwsCredientialRepo().find_by_vague_id(identifier, self.user_id)
                 if ins is None:
                     raise InvalidCmd(
                         'ec2 bind: invalid input, no such aws crediential')
                 vm = ValidatorManager.init_db_input_validator(
                     EC2_VALIDATORS, uniq_key, col_name='ec2Instance', aws_crediential_id=ins['_id'])
-                return vm.next()
-            return vm.next(cmds[0])
+                return await vm.next()
 
         except SessionFinished:
             vm = await ValidatorManager.load_validator(uniq_key)
@@ -115,7 +115,7 @@ class Ec2Rm(AsyncBaseMessageHandler):
             raise InvalidCmd('ec2 rm: invalid input, expect id or alias')
         identifier = cmds[0]
         repo = Ec2InstanceRepo()
-        ins = repo.find_by_vague_id(identifier)
+        ins = repo.find_by_vague_id(identifier, self.user_id)
         if ins is None:
             return 'No such instance'
         repo.delete_from_id(ins['_id'])
@@ -144,7 +144,7 @@ class Ec2Alias(AsyncBaseMessageHandler):
                 'ec2 alias: invalid input, expect <id | alias > <new alias>')
         identifier, newAlias = cmds
         repo = Ec2InstanceRepo()
-        ins: Ec2Instance = repo.find_by_vague_id(identifier)
+        ins: Ec2Instance = repo.find_by_vague_id(identifier, self.user_id)
         if ins is None:
             return 'No such instance'
         success = repo.update_alias(
@@ -172,7 +172,7 @@ class Ec2CronRm(AsyncBaseMessageHandler):
             raise InvalidCmd('ec2 cron rm: invalid input, expect id or alias')
         identifier = cmds[0]
         repo = Ec2CronRepo()
-        ins = repo.find_by_vague_id(identifier)
+        ins = repo.find_by_vague_id(identifier, self.user_id)
         if ins is None:
             return 'No such cron job'
         repo.delete_from_id(ins['_id'])
@@ -187,7 +187,7 @@ class Ec2Cron(AsyncBaseMessageHandler):
                 'ec2 cron: invalid input, expect [id | alias ] <cron string> <command> \ncron string: hour:minute e.g 23:30 hour:[0:23], minute:[0:59]\n command: start | stop')
         # validate each param
         instance, cron_time, _cmd = ec2_cron_validate_and_transform_params(
-            cmds)
+            cmds, self.user_id)
         hour, minute = cron_time
         # check if exists a same cron job
         existed = Ec2CronRepo().find_by_time(

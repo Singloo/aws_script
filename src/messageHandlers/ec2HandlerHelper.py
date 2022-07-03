@@ -158,10 +158,10 @@ def assert_cmds_to_be_one(cmds: list[str]):
                 'ec2 start/stop/status', '<id | alias> or no input(The default Ec2 instance will be used)').generate())
 
 
-def _get_ec2_instance(vague_id: str | None) -> Ec2Instance:
+def _get_ec2_instance(user_id: ObjectId, vague_id: str | None,) -> Ec2Instance:
     if vague_id is None:
         return Ec2InstanceRepo().get_default()
-    return Ec2InstanceRepo().find_by_vague_id(vague_id)
+    return Ec2InstanceRepo().find_by_vague_id(vague_id, user_id)
 
 
 async def _ec2_start_or_stop(cmd: str, instance_id: ObjectId, aws_crediential_id: ObjectId, ec2_log_id: ObjectId, user_id: ObjectId):
@@ -205,8 +205,9 @@ async def ec2_status(instance_id: ObjectId, aws_crediential_id: ObjectId, ec2_lo
             return MessageGenerator().cmd_error('status', e).generate()
 
 
-def get_ec2_instance_status_and_unfinished_cmd(cmds: list[str]):
-    ec2_instance = _get_ec2_instance(None if len(cmds) == 0 else cmds[0])
+def get_ec2_instance_status_and_unfinished_cmd(cmds: list[str], user_id: ObjectId):
+    ec2_instance = _get_ec2_instance(
+        user_id, None if len(cmds) == 0 else cmds[0])
     ec2_status: Ec2Status = Ec2StatusRepo().find_by_id(ec2_instance['_id'])
     repo = Ec2OperationLogRepo()
     unfinished_cmd = repo.get_last_unfinished_cmd()
@@ -239,7 +240,7 @@ async def cmd_executor(cmds: list[str], cmd: str, expected_status: str | None, u
     '''
     assert_cmds_to_be_one(cmds)
     ec2_instance, ec2_status, unfinished_cmd = get_ec2_instance_status_and_unfinished_cmd(
-        cmds)
+        cmds, user_id)
     current_status = ec2_status['status']
     instance_id, aws_crediential_id = ec2_instance['_id'], ec2_instance['aws_crediential_id']
     if unfinished_cmd is not None:
@@ -302,7 +303,7 @@ def _ec2_cron_validate_cmd(cmd: str):
     return cmd
 
 
-def ec2_cron_validate_and_transform_params(cmds: list[str]) -> tuple[Ec2Instance, tuple[int, int], str]:
+def ec2_cron_validate_and_transform_params(cmds: list[str], user_id: ObjectId) -> tuple[Ec2Instance, tuple[int, int], str]:
     '''
         validate params and transform it
     '''
@@ -314,7 +315,7 @@ def ec2_cron_validate_and_transform_params(cmds: list[str]) -> tuple[Ec2Instance
         instance = Ec2InstanceRepo().get_default()
     else:
         vague_id, cron_string, cmd = cmds
-        instance = Ec2InstanceRepo().find_by_vague_id(vague_id)
+        instance = Ec2InstanceRepo().find_by_vague_id(vague_id, user_id)
     if instance is None:
         raise InvalidCmd('ec2 cron: no such instance')
     cron_time = _ec2_cron_validate_cron_string(cron_string)

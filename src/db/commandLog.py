@@ -19,12 +19,13 @@ class CommandLogRepo(Mongo):
             'success': True
         }))
 
-    def error(self, command: str, triggered_by: ObjectId, started_at: datetime, finished_at: datetime, error: Any):
+    def error(self, command: str, triggered_by: ObjectId, started_at: datetime, finished_at: datetime, error: Any, trace_info: str | None = None):
         return self.col.insert_one(self.add_created_updated_at({
             'command': command,
             'triggered_by': triggered_by,
             'started_at': started_at,
             'finished_at': finished_at,
             'error': error,
-            'success': False
+            'success': False,
+            'trace_info': trace_info
         }))

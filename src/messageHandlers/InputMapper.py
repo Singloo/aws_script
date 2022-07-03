@@ -1,3 +1,4 @@
+from asyncio.log import logger
 from typing import Any
 from . import AsyncBaseMessageHandler
 from .awsHandler import AwsHandler
@@ -7,6 +8,7 @@ from .InputValidator import ValidatorManager, NoSuchSession
 from datetime import datetime
 from src.db.commandLog import CommandLogRepo
 from .exceptions import InvalidCmd, NoSuchHandler
+import traceback
 
 
 def destruct_msg(msg: str) -> list[str]:
@@ -18,6 +20,7 @@ class InputMapperEntry(AsyncBaseMessageHandler):
     async def __call__(self, cmds: list[str]):
         started_at = datetime.now()
         err: Exception = None
+        trace_info: str = None
         try:
             res = await super().__call__(cmds)
             CommandLogRepo().finish(
@@ -31,12 +34,14 @@ class InputMapperEntry(AsyncBaseMessageHandler):
             return '\n'.join(e.args)
         except Exception as e:
             err = e
+            trace_info = traceback.format_exc()
+            logger.error(trace_info)
             return f'Unexpected error: {e.args}'
         finally:
             if err is None:
                 return
             CommandLogRepo().error(
-                self.params['origin_input'], self.user_id, started_at, datetime.now(), str(err))
+                self.params['origin_input'], self.user_id, started_at, datetime.now(), str(err), trace_info)
 
     @property
     def aws(self):
