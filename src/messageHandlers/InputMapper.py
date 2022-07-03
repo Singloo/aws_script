@@ -1,11 +1,12 @@
 from typing import Any
-from . import AsyncBaseMessageHandler, NoSuchHandler
+from . import AsyncBaseMessageHandler
 from .awsHandler import AwsHandler
 from .ec2Handler import Ec2Handler
 from src.db.redis import CacheKeys
 from .InputValidator import ValidatorManager, NoSuchSession
 from datetime import datetime
 from src.db.commandLog import CommandLogRepo
+from .exceptions import InvalidCmd, NoSuchHandler
 
 
 def destruct_msg(msg: str) -> list[str]:
@@ -16,17 +17,26 @@ class InputMapperEntry(AsyncBaseMessageHandler):
 
     async def __call__(self, cmds: list[str]):
         started_at = datetime.now()
+        err: Exception = None
         try:
             res = await super().__call__(cmds)
             CommandLogRepo().finish(
                 self.params['origin_input'], self.user_id, started_at, datetime.now(), res)
             return res
-        except NoSuchHandler:
+        except NoSuchHandler as e:
+            err = e
             return 'What?'
+        except InvalidCmd as e:
+            err = e
+            return '\n'.join(e.args)
         except Exception as e:
-            CommandLogRepo().error(
-                self.params['origin_input'], self.user_id, started_at, datetime.now(), e)
+            err = e
             return f'Unexpected error: {e.args}'
+        finally:
+            if err is None:
+                return
+            CommandLogRepo().error(
+                self.params['origin_input'], self.user_id, started_at, datetime.now(), str(err))
 
     @property
     def aws(self):

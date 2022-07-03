@@ -44,7 +44,7 @@ class Mongo(object):
             host=MONGO_HOST,
             port=int(MONGO_PORT),
             username=MONGO_USERNAME, password=MONGO_PASSWORD,
-            connect=False
+            connect=True
         )
         self.db = self._mongoClient[MONGO_DBNAME]
 

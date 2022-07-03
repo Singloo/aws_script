@@ -1,5 +1,8 @@
 class InvalidCmd(Exception):
-    message: str
+    def __init__(self, *args: object) -> None:
+        super().__init__(*args)
 
-    def __init__(self, message: str) -> None:
-        self.message = message
+
+class NoSuchHandler(Exception):
+    def __init__(self, *args: object) -> None:
+        super().__init__(*args)

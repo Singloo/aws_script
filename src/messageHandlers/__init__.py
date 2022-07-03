@@ -1,14 +1,5 @@
 from typing import Any
-
-
-class NoSuchHandler(Exception):
-    def __init__(self, *args: object) -> None:
-        super().__init__(*args)
-
-
-class InvalidCammand(Exception):
-    def __init__(self, *args: object) -> None:
-        super().__init__('Invalid cammand', *args)
+from .exceptions import NoSuchHandler
 
 
 class BaseMessageHandler():
@@ -30,10 +21,10 @@ class BaseMessageHandler():
             res = getattr(self, first, None)
             if res is None:
                 return self._fallback(cmds)
-            input = cmds[1:] if len(cmds) > 1 else None
+            input = cmds[1:]
             return res(input)
-        except TypeError:
-            raise InvalidCammand
+        except TypeError as e:
+            raise TypeError(*e.args, cmds)
 
     def _fallback(self):
         raise NoSuchHandler
@@ -58,10 +49,10 @@ class AsyncBaseMessageHandler():
             res = getattr(self, first, None)
             if res is None:
                 return await self._fallback(cmds)
-            input = cmds[1:] if len(cmds) > 1 else None
+            input = cmds[1:]
             return await res(input)
-        except TypeError:
-            raise InvalidCammand
+        except TypeError as e:
+            raise TypeError(*e.args, cmds)
 
     async def _fallback(self, cmds: list[str]):
         raise NoSuchHandler
