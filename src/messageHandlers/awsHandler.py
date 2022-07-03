@@ -15,8 +15,11 @@ from .messageGenerator import MessageGenerator
 
 
 class AwsBind(AsyncBaseMessageHandler):
-    async def __call__(self, input: str | None = None):
-        uniq_key = CacheKeys.aws_validator_key(self.params.get('user_id'))
+    async def __call__(self, inputs: list[str]):
+        uniq_key = CacheKeys.aws_validator_key(self.user_id)
+        if len(inputs) > 1:
+            raise InvalidCmd('Aws bind: invalid input')
+        input = inputs[0] if len(inputs) == 1 else None
         try:
             vm: ValidatorManager
             if input is None:
@@ -37,7 +40,7 @@ class AwsBind(AsyncBaseMessageHandler):
                 return res
             object_id, alias = AwsCredientialRepo().insert(
                 {**data, 'encrypted': True},
-                self.params.get('user_id')
+                self.user_id
             )
             return f'Success, your credientials are encrypted well in our database.\n [ID]: {object_id} \n[Default Alias]:{alias}'
         except ValidatorInvalidAndExceedMaximumTimes:
@@ -46,8 +49,6 @@ class AwsBind(AsyncBaseMessageHandler):
             return 'Invalid input'
         except SessionExpired:
             return 'Sorry, session is expired, please try again.'
-        except NoSuchSession:
-            return 'No aws bind session, please try again'
         except ExceedMaximumNumber:
             return 'Sorry, you cannot bind more AWS crediential(maximum 100)'
 

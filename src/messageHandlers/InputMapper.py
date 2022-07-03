@@ -26,7 +26,7 @@ class InputMapperEntry(AsyncBaseMessageHandler):
         except Exception as e:
             CommandLogRepo().error(
                 self.params['origin_input'], self.user_id, started_at, datetime.now(), e)
-            raise e
+            return f'Unexpected error: {e.args}'
 
     @property
     def aws(self):
@@ -39,13 +39,14 @@ class InputMapperEntry(AsyncBaseMessageHandler):
     async def _tryBind(self):
         aws_cache_key = CacheKeys.aws_validator_key(self.user_id)
         ec2_cache_key = CacheKeys.ec2_validator_key(self.user_id)
+        inputs = self.params['origin_input'].split(' ')
         try:
-
             await ValidatorManager.load_validator(aws_cache_key)
-            return await self.aws.bind(self.params.get('origin_input'))
+            return await self.aws.bind(inputs)
         except NoSuchSession:
             try:
-                return await ValidatorManager.load_validator(ec2_cache_key)
+                await ValidatorManager.load_validator(ec2_cache_key)
+                return await self.ec2.bind(inputs)
             except NoSuchSession:
                 raise NoSuchHandler
 

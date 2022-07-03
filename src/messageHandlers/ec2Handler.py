@@ -53,11 +53,12 @@ class Ec2Bind(AsyncBaseMessageHandler):
         uniq_key = CacheKeys.ec2_validator_key(self.params.get('user_id'))
         try:
             vm: ValidatorManager
-            vm = await ValidatorManager.load_validator(uniq_key)
-            if vm is None:
+            try:
+                vm = await ValidatorManager.load_validator(uniq_key)
+            except NoSuchSession:
                 if len(cmds) != 1:
                     raise InvalidCmd(
-                        'ec2 bind: invalid input, expect id or alias provided')
+                        'ec2 bind: invalid input, expect aws credential id or alias provided')
                 identifier = cmds[0]
                 ins = AwsCredientialRepo().find_by_vague_id(identifier)
                 if ins is None:
@@ -89,11 +90,9 @@ class Ec2Bind(AsyncBaseMessageHandler):
         except ValidatorInvalidInput:
             return 'Invalid input'
         except SessionExpired:
-            return 'Sorry, session is expired, please try again.'
-        except NoSuchSession:
-            return 'No aws bind session, please try again'
+            return 'Ec2 bind: Sorry, session is expired, please try again.'
         except ExceedMaximumNumber:
-            return 'Sorry, you cannot bind more AWS crediential(maximum 100)'
+            return 'Sorry, you cannot bind more ec2 instance(maximum 100)'
 
 
 class Ec2List(AsyncBaseMessageHandler):

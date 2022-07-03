@@ -23,6 +23,7 @@ sentry_sdk.init(
 
 
 app = Sanic('wechat_service')
+sched.start()
 
 
 @atexit.register
@@ -42,7 +43,7 @@ async def main_post(request: Request) -> HTTPResponse:
         user_id = userRepo.find_by_wechat_id(toUser)
         content = await InputMapperEntry(params={
             'user_id': user_id,
-            'origin_input':recMsg.Content
+            'origin_input': recMsg.Content
         })(recMsg.Content.split(' '))
         logger.info(f'[{recMsg.FromUserName}] [replyMsg] {content}')
         replyMsg = reply.TextMsg(toUser, fromUser, content)
