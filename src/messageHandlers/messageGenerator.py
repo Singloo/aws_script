@@ -6,7 +6,7 @@ import re
 class MessageGenerator():
     messages: list[str]
 
-    def __init__(self, msg: str | list[str]) -> None:
+    def __init__(self, msg: None | str | list[str] = None) -> None:
         self.messages = []
         if isinstance(msg, str):
             self.messages.append(msg)
@@ -70,7 +70,7 @@ class MessageGenerator():
         return self._append_new_msg(f'List of {name}, total: {count}')
 
     def list_item(self, item: dict[str, str], key_mapper: dict[str, str] = None):
-        for k, v in item.items:
+        for k, v in item.items():
             self._append_new_msg(
                 f'{k if key_mapper is None else key_mapper.get(k,k)}: {v}')
         return self.separator()

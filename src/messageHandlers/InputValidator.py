@@ -1,3 +1,4 @@
+from src.logger import logger
 from src.types import ValidatorFunc
 import time
 from src.utils.util import list_every
@@ -23,8 +24,8 @@ class SessionFinished(Exception):
 
 
 class ValidatorInvalidInput(Exception):
-    def __init__(self, *args: object) -> None:
-        super().__init__('Invalid input', *args)
+    def __init__(self, type: str = '', *args: object) -> None:
+        super().__init__(f'Invalid input: {type}', *args)
 
 
 class ValidatorInvalidAndExceedMaximumTimes(Exception):
@@ -97,11 +98,17 @@ class Validator():
         newValue = newValue.strip()
         try:
             if not isinstance(newValue, str):
+                logger.info(
+                    f'[InputValidator 101] value is not a str {newValue}')
                 raise ValidatorInvalidInput
             if not self._validator(newValue):
+                logger.info(
+                    f'[InputValidator 104] validator return false {newValue}')
                 raise ValidatorInvalidInput
         except ValidatorInvalidInput:
             if self.is_max_times_exceeded:
+                logger.info(
+                    f'[InputValidator 110] max times exceeded {newValue} {self._times}')
                 # exceed maximum times error only happened when input is invalid
                 raise ValidatorInvalidAndExceedMaximumTimes
             raise

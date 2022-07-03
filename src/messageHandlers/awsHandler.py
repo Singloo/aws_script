@@ -1,4 +1,4 @@
-from asyncio.log import logger
+from src.logger import logger
 from . import AsyncBaseMessageHandler
 from .InputValidator import ValidatorManager, Validator, SessionExpired, ValidatorInvalidAndExceedMaximumTimes, ValidatorInvalidInput, SessionFinished, NoSuchSession
 from functools import partial
@@ -29,6 +29,8 @@ class AwsBind(AsyncBaseMessageHandler):
             vm = await ValidatorManager.load_validator(uniq_key)
             data = vm.collect()['data']
             col_name = vm.collect()['other_args']['col_name']
+            logger.info(
+                f'[awsHandler 32] session finished data: {data} {vm.collect()}')
             res = await test_aws_resource(
                 data['region_name'], Crypto.decrypt(data['aws_access_key_id']), Crypto.decrypt(data['aws_secret_access_key']))
             if isinstance(res, str):
@@ -107,7 +109,7 @@ AWS_VALIDATORS: list[Validator] = [
     Validator(
         prompt='''You are going to bind aws crediential, please finish it in 5 min\nPlease input <aws key id>''',
         invalid_prompt='aws key id is wrong',
-        attribute_name='aws_key_id',
+        attribute_name='aws_access_key_id',
         validator=partial(re_strict_match, pattern='^[A-Z0-9]{20}$'),
         encrypt=True
     ),
