@@ -2,7 +2,7 @@ import re
 from src.logger import logger
 from src.db.redis import CacheKeys, remove
 from src.db.exceptions import ExceedMaximumNumber
-from src.types.type import Ec2Instance
+from src.types.type import Ec2Instance, Ec2Status
 from . import AsyncBaseMessageHandler
 from .InputValidator import ValidatorManager, Validator, SessionExpired, ValidatorInvalidAndExceedMaximumTimes, ValidatorInvalidInput, SessionFinished, NoSuchSession
 from .exceptions import InvalidCmd
@@ -15,7 +15,7 @@ from .helper import test_aws_resource
 from .messageGenerator import MessageGenerator
 from src.schedulers.scheduler import sched
 from apscheduler.job import Job
-from .ec2HandlerHelper import validate_outline, cmd_executor, ec2_start, ec2_status, ec2_stop, ec2_cron_validate_and_transform_params, cmd_executor_sync
+from .ec2HandlerHelper import validate_outline, cmd_executor, ec2_start, ec2_status, ec2_stop, ec2_cron_validate_and_transform_params, cmd_executor_cron, init_ec2_status
 import src.utils.crypto as Crypto
 
 EC2_VALIDATORS = [
@@ -87,6 +87,7 @@ class Ec2Bind(AsyncBaseMessageHandler):
                 self.user_id
             )
             remove(uniq_key)
+            init_ec2_status(object_id, aws_crediential_id, self.user_id)
             return f'Success, your credientials are encrypted well in our database.\n [ID]: {object_id} \n[Default Alias]:{alias}'
         except ValidatorInvalidAndExceedMaximumTimes as e:
             remove(uniq_key)
@@ -208,7 +209,7 @@ class Ec2Cron(AsyncBaseMessageHandler):
             'start': ([instance['_id']],  'start', 'stopped', self.user_id, ec2_start),
             'stop': ([instance['_id']], 'stop', 'running', self.user_id, ec2_stop)
         }
-        job: Job = sched.add_job(cmd_executor_sync, args=(
+        job: Job = sched.add_job(cmd_executor_cron, args=(
             ec2_cron_id, *CRON_PARAMS[_cmd]), trigger='cron', hour=hour, minute=minute)
         # set cron job to running
         Ec2CronRepo().run_job(ec2_cron_id, job.id)
