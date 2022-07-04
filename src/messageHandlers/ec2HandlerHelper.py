@@ -295,7 +295,7 @@ async def cmd_executor(cmds: list[str], cmd: str, expected_status: str | None, u
         res_msg = MessageGenerator().cmd_success(cmd, current_status)
         if cmd == 'status':
             res_msg.add_outline_token(
-                ec2_instance['outline_token'], e).add_ip(ec2_status['ip'])
+                ec2_instance['outline_token'], ec2_status['ip']).add_ip(ec2_status['ip'])
         return res_msg.generate()
     except TimeoutException:
         return MessageGenerator().cmd_timeout(cmd, current_status).add_outline_token(ec2_instance['outline_token'], e).add_ip(ec2_status['ip']).generate()
