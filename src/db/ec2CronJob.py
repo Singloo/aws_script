@@ -16,10 +16,10 @@ class Ec2CronRepo(Mongo):
             [('alias', 1)], background=True)]
         self.col.create_indexes(index_models)
 
-    def insert(self, instance_id: ObjectId, cmd: str, hour: int, minute: int, user_id: ObjectId):
+    def insert(self, ec2_id: ObjectId, cmd: str, hour: int, minute: int, user_id: ObjectId):
         alias = self.get_alias(user_id)
         return self.col.insert_one(self.add_created_updated_at({
-            'ec2_id': instance_id,
+            'ec2_id': ec2_id,
             'command': cmd,
             'hour': hour,
             'minute': minute,
@@ -38,9 +38,9 @@ class Ec2CronRepo(Mongo):
             }
         }).modified_count > 0
 
-    def find_by_time(self, instance_id: ObjectId, cmd: str, hour: int, minute: int) -> Ec2Cron | None:
+    def find_by_time(self, ec2_id: ObjectId, cmd: str, hour: int, minute: int) -> Ec2Cron | None:
         return self.col.find_one({
-            'ec2_id': instance_id,
+            'ec2_id': ec2_id,
             'commnand': cmd,
             'hour': hour,
             'minute': minute,

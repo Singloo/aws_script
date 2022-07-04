@@ -18,9 +18,6 @@ class CacheKeys:
     def userdata(user_id: str):
         return f'userdata/{user_id}'
 
-    def status_msg(instance_id: str):
-        return f'statusmsg/{instance_id}'
-
     def aws_validator_key(user_id: str):
         return f'validator/{user_id}/aws'
 

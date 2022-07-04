@@ -21,28 +21,29 @@ class InputMapperEntry(AsyncBaseMessageHandler):
         started_at = datetime.now()
         err: Exception = None
         trace_info: str = None
-        replay_msg: str = None
+        reply_msg: str = None
         try:
-            replay_msg = await super().__call__(cmds)
+            reply_msg = await super().__call__(cmds)
+            logger.info(f'[InputMapper 27] response: {reply_msg}')
             CommandLogRepo().finish(
-                self.params['origin_input'], self.user_id, started_at, datetime.now(), replay_msg)
-            logger.info(f'[InputMapper 28] {replay_msg}')
+                self.params['origin_input'], self.user_id, started_at, datetime.now(), reply_msg)
+            logger.info(f'[InputMapper 28] {reply_msg}')
         except NoSuchHandler as e:
             err = e
-            replay_msg = 'What?'
+            reply_msg = 'What?'
         except InvalidCmd as e:
             err = e
-            replay_msg = '\n'.join(e.args)
+            reply_msg = '\n'.join(e.args)
         except Exception as e:
             err = e
             trace_info = traceback.format_exc()
             logger.error(trace_info)
-            replay_msg = f'Unexpected error: {e.args}'
+            reply_msg = f'Unexpected error: {e.args}'
         finally:
             if err != None:
                 CommandLogRepo().error(
                     self.params['origin_input'], self.user_id, started_at, datetime.now(), str(err), trace_info)
-            return replay_msg
+            return reply_msg
 
     @property
     def aws(self):

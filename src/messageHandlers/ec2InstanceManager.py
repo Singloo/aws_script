@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 import aioboto3
 from bson.objectid import ObjectId
+from src.db.ec2Instance import Ec2InstanceRepo
 from src.utils.constants import REGION_NAME, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, SS_PORT, SS_STR
 from src.db.exceptions import ExceedMaximumNumber, NoSuchDocument
 from src.db.awsCrediential import AwsCredientialRepo
@@ -53,14 +54,15 @@ def getEc2Instance(instance_id: str):
     )
 
 
-def getEc2InstanceWithCredentialId(instance_id: ObjectId, aws_crediential_id: ObjectId):
+def getEc2InstanceWithCredentialId(ec2_id: ObjectId, aws_crediential_id: ObjectId):
     crediential = AwsCredientialRepo().find_by_id(aws_crediential_id)
+    ec2_instance = Ec2InstanceRepo().find_by_id(ec2_id)
     if crediential is None:
         raise NoSuchDocument(
             MessageGenerator().no_such_document('AwsCrediential', aws_crediential_id)
         )
     return Ec2InstanceManager(
-        instance_id,
+        ec2_instance['instance_id'],
         crediential['region_name'],
         crediential['aws_access_key_id'],
         crediential['aws_secret_access_key']

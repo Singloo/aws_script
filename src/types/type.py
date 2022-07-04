@@ -5,9 +5,6 @@ from bson.objectid import ObjectId
 from enum import Enum
 
 
-class CachedData(TypedDict):
-    instance_id: str
-
 
 ValidatorFunc = Callable[[str], bool]
 

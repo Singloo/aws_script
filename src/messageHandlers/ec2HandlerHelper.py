@@ -49,23 +49,23 @@ async def try_status_in_limited_time(get_status: Coroutine, seconds: float = 3.5
     return async_race(get_status, timeout(seconds))
 
 
-def update_log_and_instance_status(ec2_log_id: ObjectId, instance_id: ObjectId, status: str, ip: str = None):
+def update_log_and_instance_status(ec2_log_id: ObjectId, ec2_id: ObjectId, status: str, ip: str = None):
     '''
         update ec2 operaton log, and update status, ip of the instance
     '''
     Ec2OperationLogRepo().finish_operation(ec2_log_id)
-    Ec2StatusRepo().update_status(instance_id, status, ip)
+    Ec2StatusRepo().update_status(ec2_id, status, ip)
 
 
-def schedule_status_task(ec2_log_id: ObjectId, instance_id: ObjectId, aws_crediential_id: ObjectId, expected_status: str | None = None):
+def schedule_status_task(ec2_log_id: ObjectId, ec2_id: ObjectId, aws_crediential_id: ObjectId, expected_status: str | None = None):
     '''
         schedule a background job to query ec2 status.
     '''
     if expected_status is None:
-        coro = load_and_get_status_once(instance_id, aws_crediential_id)
+        coro = load_and_get_status_once(ec2_id, aws_crediential_id)
     else:
         coro = get_status_until(
-            instance_id, aws_crediential_id, expected_status)
+            ec2_id, aws_crediential_id, expected_status)
     loop = asyncio.get_event_loop()
     task = loop.create_task(coro)
 
@@ -74,21 +74,21 @@ def schedule_status_task(ec2_log_id: ObjectId, instance_id: ObjectId, aws_credie
             on get status finish, update Ec2OperationLog, Ec2Status
         '''
         status, ip = _task.result()[0]
-        update_log_and_instance_status(ec2_log_id, instance_id, status, ip)
+        update_log_and_instance_status(ec2_log_id, ec2_id, status, ip)
 
     task.add_done_callback(_on_finish)
 
 
-def create_and_schedule_status_task(instance_id: ObjectId, aws_crediential_id: ObjectId, user_id: ObjectId, expected_status: str | None = None):
+def create_and_schedule_status_task(ec2_id: ObjectId, aws_crediential_id: ObjectId, user_id: ObjectId, expected_status: str | None = None):
     '''
         create an operation log, and schedule a status task
     '''
-    ec2_log_id = Ec2OperationLogRepo().insert(instance_id, 'status', user_id)
-    schedule_status_task(ec2_log_id, instance_id,
+    ec2_log_id = Ec2OperationLogRepo().insert(ec2_id, 'status', user_id)
+    schedule_status_task(ec2_log_id, ec2_id,
                          aws_crediential_id, expected_status)
 
 
-async def get_status_until(instance_id: ObjectId, aws_crediential_id: ObjectId, expected_status: str):
+async def get_status_until(ec2_id: ObjectId, aws_crediential_id: ObjectId, expected_status: str):
     '''
         keep querying instance status, until it matches the provided expceted status.
         maximum times: 20
@@ -98,7 +98,7 @@ async def get_status_until(instance_id: ObjectId, aws_crediential_id: ObjectId, 
     wait_time = 0.2
     times = 0
     state, ip = None
-    with getEc2InstanceWithCredentialId(instance_id, aws_crediential_id) as ins:
+    with getEc2InstanceWithCredentialId(ec2_id, aws_crediential_id) as ins:
         while state != expected_status or times < max_times:
             await asyncio.sleep(wait_time)
             state, ip = await load_and_get_ins_state_ip(ins)
@@ -106,11 +106,11 @@ async def get_status_until(instance_id: ObjectId, aws_crediential_id: ObjectId, 
         return state, ip
 
 
-async def load_and_get_status_once(instance_id: ObjectId, aws_crediential_id: ObjectId):
+async def load_and_get_status_once(ec2_id: ObjectId, aws_crediential_id: ObjectId):
     '''
         load once, and return status, ip
     '''
-    with getEc2InstanceWithCredentialId(instance_id, aws_crediential_id) as ins:
+    with getEc2InstanceWithCredentialId(ec2_id, aws_crediential_id) as ins:
         return load_and_get_ins_state_ip(ins)
 
 
@@ -164,9 +164,9 @@ def _get_ec2_instance(user_id: ObjectId, vague_id: str | None,) -> Ec2Instance:
     return Ec2InstanceRepo().find_by_vague_id(vague_id, user_id)
 
 
-async def _ec2_start_or_stop(cmd: str, instance_id: ObjectId, aws_crediential_id: ObjectId, ec2_log_id: ObjectId, user_id: ObjectId):
+async def _ec2_start_or_stop(cmd: str, ec2_id: ObjectId, aws_crediential_id: ObjectId, ec2_log_id: ObjectId, user_id: ObjectId):
     is_start_cmd = cmd == 'start'
-    async with getEc2InstanceWithCredentialId(instance_id, aws_crediential_id) as ins:
+    async with getEc2InstanceWithCredentialId(ec2_id, aws_crediential_id) as ins:
         try:
             ins_state = await ins.state
             prev_state = ins_state['Name']
@@ -174,15 +174,15 @@ async def _ec2_start_or_stop(cmd: str, instance_id: ObjectId, aws_crediential_id
             logger.info(f'[Instance successfully {cmd}ed]')
             resp_attr = 'StartingInstances' if is_start_cmd else 'StoppingInstances'
             curr_state: str = response[resp_attr][0]['CurrentState']['Name']
-            update_log_and_instance_status(ec2_log_id, instance_id, curr_state)
+            update_log_and_instance_status(ec2_log_id, ec2_id, curr_state)
             expected_status = 'running' if is_start_cmd else 'stopped'
             create_and_schedule_status_task(
-                instance_id, aws_crediential_id, user_id, expected_status)
+                ec2_id, aws_crediential_id, user_id, expected_status)
             return curr_state
         except Exception as e:
             Ec2OperationLogRepo().error_operation(ec2_log_id, e)
             logger.error(
-                f'[ec2 {cmd} error] instance_id: {instance_id} error: {e}')
+                f'[ec2 {cmd} error] ec2_id: {ec2_id} error: {e}')
             return MessageGenerator().cmd_error(cmd, e).generate()
 
 
@@ -191,17 +191,17 @@ ec2_start = partial(_ec2_start_or_stop, 'start')
 ec2_stop = partial(_ec2_start_or_stop, 'stop')
 
 
-async def ec2_status(instance_id: ObjectId, aws_crediential_id: ObjectId, ec2_log_id: ObjectId, user_id: ObjectId):
-    async with getEc2InstanceWithCredentialId(instance_id, aws_crediential_id) as ins:
+async def ec2_status(ec2_id: ObjectId, aws_crediential_id: ObjectId, ec2_log_id: ObjectId, user_id: ObjectId):
+    async with getEc2InstanceWithCredentialId(ec2_id, aws_crediential_id) as ins:
         try:
             ins_state, ip = await get_ins_state_and_ip(ins)
             update_log_and_instance_status(
-                ec2_log_id, instance_id, ins_state, ip)
+                ec2_log_id, ec2_id, ins_state, ip)
             return ins_state
         except Exception as e:
             Ec2OperationLogRepo().error_operation(ec2_log_id, e)
             logger.error(
-                f'[ec2 status error] instance_id: {instance_id} error: {e}')
+                f'[ec2 status error] ec2_id: {ec2_id} error: {e}')
             return MessageGenerator().cmd_error('status', e).generate()
 
 
@@ -210,7 +210,7 @@ def get_ec2_instance_status_and_unfinished_cmd(cmds: list[str], user_id: ObjectI
         user_id, None if len(cmds) == 0 else cmds[0])
     ec2_status: Ec2Status = Ec2StatusRepo().find_by_id(ec2_instance['_id'])
     repo = Ec2OperationLogRepo()
-    unfinished_cmd = repo.get_last_unfinished_cmd()
+    unfinished_cmd = repo.get_last_unfinished_cmd(ec2_instance['_id'])
     return ec2_instance, ec2_status, unfinished_cmd
 
 
@@ -236,22 +236,22 @@ async def cmd_executor(cmds: list[str], cmd: str, expected_status: str | None, u
         cmds: input params
         cmd: start | stop | status
         expected_status: stopped | running | None
-        instance_operation: (instance_id, aws_crediential_id, ec2_log_id, user_id) -> coroutine[str]
+        instance_operation: (ec2_id, aws_crediential_id, ec2_log_id, user_id) -> coroutine[str]
     '''
     assert_cmds_to_be_one(cmds)
     ec2_instance, ec2_status, unfinished_cmd = get_ec2_instance_status_and_unfinished_cmd(
         cmds, user_id)
     current_status = ec2_status['status']
-    instance_id, aws_crediential_id = ec2_instance['_id'], ec2_instance['aws_crediential_id']
+    ec2_id, aws_crediential_id = ec2_instance['_id'], ec2_instance['aws_crediential_id']
     if unfinished_cmd is not None:
         return handle_unfinished_cmd(unfinished_cmd, cmd, current_status)
     if expected_status != None and current_status != expected_status:
         return MessageGenerator().invalid_status_for_cmd(cmd, expected_status, current_status).generate()
     ec2_log_id = Ec2OperationLogRepo().insert(
-        instance_id, cmd, user_id)
+        ec2_id, cmd, user_id)
     try:
         coro = instance_operation(
-            instance_id, aws_crediential_id, ec2_log_id, user_id)
+            ec2_id, aws_crediential_id, ec2_log_id, user_id)
         current_status = await async_race(coro, timeout(4.0), cancel_pending=False, callback=partial(timeout_cmd_callback, cmd, ec2_log_id))
         res_msg = MessageGenerator().cmd_success(cmd, current_status)
         if cmd == 'status':

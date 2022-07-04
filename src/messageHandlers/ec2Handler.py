@@ -130,17 +130,17 @@ class Ec2Rm(AsyncBaseMessageHandler):
 
 class Ec2Start(AsyncBaseMessageHandler):
     async def __call__(self, cmds: list[str]):
-        return cmd_executor(cmds, 'start', 'stopped', self.user_id, ec2_start)
+        return await cmd_executor(cmds, 'start', 'stopped', self.user_id, ec2_start)
 
 
 class Ec2StatusCmd(AsyncBaseMessageHandler):
     async def __call__(self, cmds: list[str]):
-        return cmd_executor(cmds, 'status', None, self.user_id, ec2_status)
+        return await cmd_executor(cmds, 'status', None, self.user_id, ec2_status)
 
 
 class Ec2Stop(AsyncBaseMessageHandler):
     async def __call__(self, cmds: list[str]):
-        return cmd_executor(cmds, 'stop', 'running', self.user_id, ec2_stop)
+        return await cmd_executor(cmds, 'stop', 'running', self.user_id, ec2_stop)
 
 
 class Ec2Alias(AsyncBaseMessageHandler):
