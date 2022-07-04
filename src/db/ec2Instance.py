@@ -26,8 +26,8 @@ class Ec2InstanceRepo(Mongo):
             raise ExceedMaximumNumber
         alias = self.get_alias(user_id)
         res = self.col.insert_one(
-            {**doc, 'user_id': user_id, 'alias': alias, 'default': alias == 1})
-        return res.inserted_id
+            {**doc, 'user_id': user_id, 'alias': alias, 'active': True, 'default': existing == 0})
+        return res.inserted_id, alias
 
     def find_by_id(self, _id: ObjectId) -> Ec2Instance:
         res = super().find_by_id(_id)

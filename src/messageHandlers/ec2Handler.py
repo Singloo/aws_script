@@ -16,7 +16,7 @@ from .messageGenerator import MessageGenerator
 from src.schedulers.scheduler import sched
 from apscheduler.job import Job
 from .ec2HandlerHelper import validate_outline, cmd_executor, ec2_start, ec2_status, ec2_stop, ec2_cron_validate_and_transform_params, cmd_executor_sync
-from typing import List
+import src.utils.crypto as Crypto
 
 EC2_VALIDATORS = [
     Validator(
@@ -76,13 +76,15 @@ class Ec2Bind(AsyncBaseMessageHandler):
             )['other_args']['aws_crediential_id']
             aws_crediential_ins = AwsCredientialRepo().find_by_id(aws_crediential_id)
             res = await test_aws_resource(
-                aws_crediential_ins['region_name'], aws_crediential_ins['aws_access_key_id'], aws_crediential_ins['aws_secret_access_key'], instance_id=data['instance_id'])
+                aws_crediential_ins['region_name'], aws_crediential_ins['aws_access_key_id'], aws_crediential_ins['aws_secret_access_key'], instance_id=Crypto.decrypt(data['instance_id']))
             if isinstance(res, str):
                 return res
             object_id, alias = Ec2InstanceRepo().insert(
-                {**data, **self.__transform_outline_token(
-                    data['outline_token']), 'encrypted': True},
-                self.params.get('user_id')
+                {**data,
+                 **self.__transform_outline_token(
+                     data['outline_token']),
+                 'encrypted': True},
+                self.user_id
             )
             return f'Success, your credientials are encrypted well in our database.\n [ID]: {object_id} \n[Default Alias]:{alias}'
         except (ValidatorInvalidInput, ValidatorInvalidAndExceedMaximumTimes) as e:
