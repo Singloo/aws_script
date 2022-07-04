@@ -83,8 +83,10 @@ class Ec2Bind(AsyncBaseMessageHandler):
                 {**data,
                  **self.__transform_outline_token(
                      data['outline_token']),
-                 'encrypted': True},
-                self.user_id
+                 'encrypted': True,
+                 'aws_crediential_id': aws_crediential_id
+                 },
+                self.user_id,
             )
             remove(uniq_key)
             init_ec2_status(object_id, aws_crediential_id, self.user_id)

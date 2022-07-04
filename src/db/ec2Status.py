@@ -9,6 +9,11 @@ class Ec2StatusRepo(Mongo):
         super().__init__()
         self.col = self.get_collection('ec2Status')
 
+    def find_by_ec2_id(self, ec2_id: ObjectId):
+        return self.col.find_one({
+            'ec2_id': ec2_id
+        })
+
     def upsert_ec2_status(self, ec2_id: ObjectId, status: str, command: str, user_id: ObjectId, ip: str | None = None):
         doc = {
             'ec2_id': ec2_id,

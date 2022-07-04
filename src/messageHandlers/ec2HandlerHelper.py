@@ -237,7 +237,7 @@ def get_ec2_instance_status_and_unfinished_cmd(cmds: list[str], user_id: ObjectI
     '''
     ec2_instance = _get_ec2_instance(
         user_id, None if len(cmds) == 0 else cmds[0])
-    ec2_status: Ec2Status = Ec2StatusRepo().find_by_id(ec2_instance['_id'])
+    ec2_status: Ec2Status = Ec2StatusRepo().find_by_ec2_id(ec2_instance['_id'])
     repo = Ec2OperationLogRepo()
     unfinished_cmd = repo.get_last_unfinished_cmd(ec2_instance['_id'])
     return ec2_instance, ec2_status, unfinished_cmd
