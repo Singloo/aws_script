@@ -4,10 +4,9 @@ from .InputValidator import ValidatorManager, Validator, SessionExpired, Validat
 from functools import partial
 from src.utils.util import re_strict_match, re_test
 import src.utils.crypto as Crypto
-from src.db.redis import CacheKeys
+from src.db.redis import CacheKeys, remove
 from src.db.awsCrediential import AwsCredientialRepo
 from src.db.exceptions import ExceedMaximumNumber
-from src.types import AwsCrediential
 from src.utils.util import desensitize_data
 from .exceptions import InvalidCmd
 from .helper import test_aws_resource
@@ -42,12 +41,18 @@ class AwsBind(AsyncBaseMessageHandler):
                 {**data, 'encrypted': True},
                 self.user_id
             )
+            remove(uniq_key)
             return f'Success, your credientials are encrypted well in our database.\n [ID]: {object_id} \n[Default Alias]:{alias}'
-        except (ValidatorInvalidInput, ValidatorInvalidAndExceedMaximumTimes) as e:
+        except ValidatorInvalidAndExceedMaximumTimes as e:
+            remove(uniq_key)
+            return '\n'.join(e.args)
+        except ValidatorInvalidInput as e:
             return '\n'.join(e.args)
         except SessionExpired:
+            remove(uniq_key)
             return 'Sorry, session is expired, please try again.'
         except ExceedMaximumNumber:
+            remove(uniq_key)
             return 'Sorry, you cannot bind more AWS crediential(maximum 100)'
 
 

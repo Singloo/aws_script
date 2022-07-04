@@ -1,6 +1,6 @@
 import re
 from src.logger import logger
-from src.db.redis import CacheKeys
+from src.db.redis import CacheKeys, remove
 from src.db.exceptions import ExceedMaximumNumber
 from src.types.type import Ec2Instance
 from . import AsyncBaseMessageHandler
@@ -86,12 +86,18 @@ class Ec2Bind(AsyncBaseMessageHandler):
                  'encrypted': True},
                 self.user_id
             )
+            remove(uniq_key)
             return f'Success, your credientials are encrypted well in our database.\n [ID]: {object_id} \n[Default Alias]:{alias}'
-        except (ValidatorInvalidInput, ValidatorInvalidAndExceedMaximumTimes) as e:
+        except ValidatorInvalidAndExceedMaximumTimes as e:
+            remove(uniq_key)
+            return '\n'.join(e.args)
+        except ValidatorInvalidInput as e:
             return '\n'.join(e.args)
         except SessionExpired:
+            remove(uniq_key)
             return 'Ec2 bind: Sorry, session is expired, please try again.'
         except ExceedMaximumNumber:
+            remove(uniq_key)
             return 'Sorry, you cannot bind more ec2 instance(maximum 100)'
 
 
