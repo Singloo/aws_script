@@ -100,17 +100,18 @@ class Validator():
             if not isinstance(newValue, str):
                 logger.info(
                     f'[InputValidator 101] value is not a str {newValue}')
-                raise ValidatorInvalidInput
+                raise ValidatorInvalidInput(self.invalid_prompt)
             if not self._validator(newValue):
                 logger.info(
                     f'[InputValidator 104] validator return false {newValue}')
-                raise ValidatorInvalidInput
+                raise ValidatorInvalidInput(self.invalid_prompt)
         except ValidatorInvalidInput:
             if self.is_max_times_exceeded:
                 logger.info(
                     f'[InputValidator 110] max times exceeded {newValue} {self._times}')
                 # exceed maximum times error only happened when input is invalid
-                raise ValidatorInvalidAndExceedMaximumTimes
+                raise ValidatorInvalidAndExceedMaximumTimes(
+                    self.invalid_prompt)
             raise
         self._value = newValue
 

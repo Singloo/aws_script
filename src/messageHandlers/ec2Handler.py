@@ -85,10 +85,8 @@ class Ec2Bind(AsyncBaseMessageHandler):
                 self.params.get('user_id')
             )
             return f'Success, your credientials are encrypted well in our database.\n [ID]: {object_id} \n[Default Alias]:{alias}'
-        except ValidatorInvalidAndExceedMaximumTimes:
-            return 'Invalid input and exceed maximum retry times, please try again.'
-        except ValidatorInvalidInput:
-            return 'Invalid input'
+        except (ValidatorInvalidInput, ValidatorInvalidAndExceedMaximumTimes) as e:
+            return '\n'.join(e.args)
         except SessionExpired:
             return 'Ec2 bind: Sorry, session is expired, please try again.'
         except ExceedMaximumNumber:
