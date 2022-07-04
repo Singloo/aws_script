@@ -45,7 +45,7 @@ async def main_post(request: Request) -> HTTPResponse:
             'user_id': user_id,
             'origin_input': recMsg.Content
         })(recMsg.Content.split(' '))
-        logger.info(f'[{recMsg.FromUserName}] [replyMsg] {content}')
+        logger.info(f'[app.py 48] [{recMsg.FromUserName}] {content}')
         replyMsg = reply.TextMsg(toUser, fromUser, content)
         await request.respond(text(replyMsg.send()))
     else:
