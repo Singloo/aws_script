@@ -2,7 +2,7 @@ from asyncio.log import logger
 from typing import Any
 from . import AsyncBaseMessageHandler
 from .awsHandler import AwsHandler
-from .ec2Handler import Ec2Handler
+from .ec2Handler import Ec2Handler, Ec2Start, Ec2Stop, Ec2StatusCmd
 from src.db.redis import CacheKeys
 from .InputValidator import ValidatorManager, NoSuchSession
 from datetime import datetime
@@ -51,6 +51,22 @@ class InputMapperEntry(AsyncBaseMessageHandler):
     @property
     def ec2(self):
         return Ec2Handler(self.params)
+
+    @property
+    def start(self):
+        return Ec2Start(self.params)
+
+    @property
+    def status(self):
+        return Ec2StatusCmd(self.params)
+
+    @property
+    def state(self):
+        return Ec2StatusCmd(self.params)
+
+    @property
+    def stop(self):
+        return Ec2Stop(self.params)
 
     async def _tryBind(self):
         aws_cache_key = CacheKeys.aws_validator_key(self.user_id)
