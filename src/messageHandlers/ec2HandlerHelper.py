@@ -116,8 +116,8 @@ async def load_and_get_status_once(ec2_id: ObjectId, aws_crediential_id: ObjectI
 
 def _try_to_decrypt_outline_token(token: str):
     '''
-    return False
-    or [crypto method, password]
+        return False
+        or [crypto method, password]
     '''
     match = re.search(r'ss:\/\/([a-zA-Z0-9]{45,}=?)@', token)
     if match is None:
@@ -159,17 +159,28 @@ def assert_cmds_to_be_one(cmds: list[str]):
 
 
 def _get_ec2_instance(user_id: ObjectId, vague_id: str | None,) -> Ec2Instance:
+    '''
+        get default or specified ec2 instance
+    '''
     if vague_id is None:
         return Ec2InstanceRepo().get_default()
     return Ec2InstanceRepo().find_by_vague_id(vague_id, user_id)
 
 
 async def _ec2_start_or_stop(cmd: str, ec2_id: ObjectId, aws_crediential_id: ObjectId, ec2_log_id: ObjectId, user_id: ObjectId):
+    '''
+        start or stop
+        1. start | stop
+        2. get current state
+        3. update log and instance state
+        4. schedule a status task
+    '''
+
     is_start_cmd = cmd == 'start'
     async with getEc2InstanceWithCredentialId(ec2_id, aws_crediential_id) as ins:
         try:
-            ins_state = await ins.state
-            prev_state = ins_state['Name']
+            # ins_state = await ins.state
+            # prev_state = ins_state['Name']
             response = await ins.start() if is_start_cmd else await ins.stop()
             logger.info(f'[Instance successfully {cmd}ed]')
             resp_attr = 'StartingInstances' if is_start_cmd else 'StoppingInstances'
@@ -182,8 +193,8 @@ async def _ec2_start_or_stop(cmd: str, ec2_id: ObjectId, aws_crediential_id: Obj
         except Exception as e:
             Ec2OperationLogRepo().error_operation(ec2_log_id, e)
             logger.error(
-                f'[ec2 {cmd} error] ec2_id: {ec2_id} error: {e}')
-            return MessageGenerator().cmd_error(cmd, e).generate()
+                f'[ec2HandlerHelper 196] {cmd} ec2_id: {ec2_id} error: {e}')
+            return MessageGenerator().cmd_error(cmd, e.args).generate()
 
 
 ec2_start = partial(_ec2_start_or_stop, 'start')
@@ -192,6 +203,9 @@ ec2_stop = partial(_ec2_start_or_stop, 'stop')
 
 
 async def ec2_status(ec2_id: ObjectId, aws_crediential_id: ObjectId, ec2_log_id: ObjectId, user_id: ObjectId):
+    '''
+
+    '''
     async with getEc2InstanceWithCredentialId(ec2_id, aws_crediential_id) as ins:
         try:
             ins_state, ip = await get_ins_state_and_ip(ins)
@@ -206,6 +220,9 @@ async def ec2_status(ec2_id: ObjectId, aws_crediential_id: ObjectId, ec2_log_id:
 
 
 def get_ec2_instance_status_and_unfinished_cmd(cmds: list[str], user_id: ObjectId):
+    '''
+        return ec2_instance, ec2_status, unfinished_cmd
+    '''
     ec2_instance = _get_ec2_instance(
         user_id, None if len(cmds) == 0 else cmds[0])
     ec2_status: Ec2Status = Ec2StatusRepo().find_by_id(ec2_instance['_id'])
@@ -215,6 +232,9 @@ def get_ec2_instance_status_and_unfinished_cmd(cmds: list[str], user_id: ObjectI
 
 
 def handle_unfinished_cmd(unfinished_cmd: Ec2OperationLog, cmd_to_run: str, current_status: str):
+    '''
+        when user input a cmd, and there is an unfinished cmd,
+    '''
     cmd = unfinished_cmd['command']
     if cmd == cmd_to_run:
         return MessageGenerator().same_cmd_is_running(cmd, unfinished_cmd['started_at']).generate()
@@ -237,6 +257,13 @@ async def cmd_executor(cmds: list[str], cmd: str, expected_status: str | None, u
         cmd: start | stop | status
         expected_status: stopped | running | None
         instance_operation: (ec2_id, aws_crediential_id, ec2_log_id, user_id) -> coroutine[str]
+
+        1. check cmds
+        2. get ec2_instance, ec2_status, unfinished_cmd
+        3. check if has unfinished cmd
+        4. if current status doesn't match expected status, return error
+        5. insert operation log
+        6. run command, race with 4s timeout
     '''
     assert_cmds_to_be_one(cmds)
     ec2_instance, ec2_status, unfinished_cmd = get_ec2_instance_status_and_unfinished_cmd(
@@ -266,6 +293,9 @@ async def cmd_executor(cmds: list[str], cmd: str, expected_status: str | None, u
 
 
 def cmd_executor_sync(cron_id: ObjectId, cmds: list[str], cmd: str, expected_status: str | None, user_id: ObjectId, instance_operation: Callable[[ObjectId, ObjectId, ObjectId, ObjectId], str]):
+    '''
+        synchroneous version of cmd_executor
+    '''
     try:
         _id = Ec2CronLogRepo().insert(cron_id, cmd)
         coro = cmd_executor(cmds, cmd, expected_status,

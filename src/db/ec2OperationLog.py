@@ -45,7 +45,7 @@ class Ec2OperationLogRepo(Mongo):
             '$set': {
                 'status': 'error',
                 'finished_at': datetime.now(),
-                'error': error
+                'error': str(error)
             }
         })
 

@@ -25,7 +25,7 @@ class CommandLogRepo(Mongo):
             'triggered_by': triggered_by,
             'started_at': started_at,
             'finished_at': finished_at,
-            'error': error,
+            'error': str(error),
             'success': False,
             'trace_info': trace_info
         }))
