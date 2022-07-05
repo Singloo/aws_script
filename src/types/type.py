@@ -5,7 +5,6 @@ from bson.objectid import ObjectId
 from enum import Enum
 
 
-
 ValidatorFunc = Callable[[str], bool]
 
 
@@ -72,6 +71,7 @@ class Ec2OperationLogStatus(Enum):
     SUCCESS = 'success'
     ERROR = 'error'
     EXCEED_MAX_RUNTIME = 'exceed_max_runtime'
+    TIMEOUT = 'timeout'
 
 
 class Ec2OperationLog(MongoMetadata):

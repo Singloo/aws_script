@@ -29,6 +29,9 @@ class Ec2OperationLogRepo(Mongo):
         return res.inserted_id
 
     def fail_operation(self, _id: ObjectId):
+        '''
+            exceed max run time
+        '''
         self.col.update_one({
             '_id': _id
         }, {
@@ -39,6 +42,9 @@ class Ec2OperationLogRepo(Mongo):
         })
 
     def error_operation(self, _id: ObjectId, error):
+        '''
+            encountered error
+        '''
         self.col.update_one({
             '_id': _id
         }, {
@@ -49,7 +55,24 @@ class Ec2OperationLogRepo(Mongo):
             }
         })
 
+    def timeout_finish_operation(self, _id: ObjectId):
+        '''
+            didnt finish in time
+        '''
+        self.col.update_one({
+            '_id': _id
+        }, {
+            '$set': {
+                'status': 'timeout',
+                'finished_at': datetime.now(),
+                'success': True
+            }
+        })
+
     def finish_operation(self, _id: ObjectId):
+        '''
+            finished in time
+        '''
         self.col.update_one({
             '_id': _id
         }, {
@@ -70,7 +93,7 @@ class Ec2OperationLogRepo(Mongo):
         for operation_log in cursor:
             operation_log: Ec2OperationLog
             max_runtime = MAX_RUNTIME[operation_log['command']]
-            if datetime.timestamp(operation_log['started_at']) + max_runtime > datetime.now().timestamp():
+            if datetime.timestamp(operation_log['started_at']) + max_runtime < datetime.now().timestamp():
                 # exceed max run time, set success to false
                 self.fail_operation(operation_log['_id'])
             else:

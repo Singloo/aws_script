@@ -19,7 +19,8 @@ class Ec2StatusRepo(Mongo):
             'ec2_id': ec2_id,
             'status': status,
             'last_command': command,
-            'modified_by': user_id
+            'modified_by': user_id,
+            'active': True
         }
         if ip != None:
             doc['ip'] = ip

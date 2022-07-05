@@ -1,4 +1,5 @@
 import asyncio
+from asyncio import CancelledError
 from typing import TYPE_CHECKING, Coroutine, Callable
 from bson.objectid import ObjectId
 from .ec2InstanceManager import getEc2InstanceWithCredentialId
@@ -39,14 +40,14 @@ async def get_ins_state_and_ip(ins: Instance):
 
 async def load_and_get_ins_state_ip(ins: Instance):
     await ins.load()
-    return get_ins_state_and_ip(ins)
+    return await get_ins_state_and_ip(ins)
 
 
-async def try_status_in_limited_time(get_status: Coroutine, seconds: float = 3.5):
-    '''
-        run get_statue coroutine in X seconds, raise TimeoutException if task didn't finish in time
-    '''
-    return async_race(get_status, timeout(seconds))
+# async def try_status_in_limited_time(get_status: Coroutine, seconds: float = 3.5):
+#     '''
+#         run get_statue coroutine in X seconds, raise TimeoutException if task didn't finish in time
+#     '''
+#     return async_race(get_status, timeout(seconds))
 
 
 def update_log_and_instance_status(ec2_log_id: ObjectId, ec2_id: ObjectId, status: str, cmd: str, user_id: ObjectId, ip: str = None,):
@@ -98,8 +99,9 @@ async def get_status_until(ec2_id: ObjectId, aws_crediential_id: ObjectId, expec
     max_times = 20
     wait_time = 0.2
     times = 0
-    state, ip = None
-    with getEc2InstanceWithCredentialId(ec2_id, aws_crediential_id) as ins:
+    state = None
+    ip = None
+    async with getEc2InstanceWithCredentialId(ec2_id, aws_crediential_id) as ins:
         while state != expected_status or times < max_times:
             await asyncio.sleep(wait_time)
             state, ip = await load_and_get_ins_state_ip(ins)
@@ -111,8 +113,8 @@ async def load_and_get_status_once(ec2_id: ObjectId, aws_crediential_id: ObjectI
     '''
         load once, and return status, ip
     '''
-    with getEc2InstanceWithCredentialId(ec2_id, aws_crediential_id) as ins:
-        return load_and_get_ins_state_ip(ins)
+    async with getEc2InstanceWithCredentialId(ec2_id, aws_crediential_id) as ins:
+        return await load_and_get_ins_state_ip(ins)
 
 
 def _try_to_decrypt_outline_token(token: str):
@@ -256,10 +258,15 @@ def handle_unfinished_cmd(unfinished_cmd: Ec2OperationLog, cmd_to_run: str, curr
 def timeout_cmd_callback(cmd: str, ec2_log_id: ObjectId, task: asyncio.Task):
     '''
         callback for timeout command
+        will update ec2 operation log status to `timeout`
     '''
-    ec2_log: Ec2OperationLog = Ec2OperationLogRepo().find_by_id(ec2_log_id)
-    logger.info(
-        f'Command: {cmd} finished, task result: {task.result()}, time consumed: {(ec2_log["finished_at"] - ec2_log["started_at"]).seconds}')
+    try:
+        Ec2OperationLogRepo().timeout_finish_operation(ec2_log_id)
+        ec2_log: Ec2OperationLog = Ec2OperationLogRepo().find_by_id(ec2_log_id)
+        logger.info(
+            f'[ec2HandlerHelper 267] Command: {cmd} finished, task result: {task.result()}, time consumed: {(ec2_log["finished_at"] - ec2_log["started_at"]).seconds}')
+    except CancelledError:
+        logger.info(f'[ec2HandlerHelper 269] task cancel error')
 
 
 async def cmd_executor(cmds: list[str], cmd: str, expected_status: str | None, user_id: ObjectId, instance_operation: Callable[[ObjectId, ObjectId, ObjectId, ObjectId], str]):
@@ -291,14 +298,24 @@ async def cmd_executor(cmds: list[str], cmd: str, expected_status: str | None, u
     try:
         coro = instance_operation(
             ec2_id, aws_crediential_id, ec2_log_id, user_id)
-        current_status = await async_race(coro, timeout(4.0), cancel_pending=False, callback=partial(timeout_cmd_callback, cmd, ec2_log_id))
+        res, pending_coros = await async_race(coro, timeout(4.0), cancel_pending=False)
+        current_status = res[0]
+        if isinstance(current_status, TimeoutException):
+            # timeout
+            logger.info(f'[ec2HandlerHelper 302] timout exception')
+            done_callback = partial(timeout_cmd_callback, cmd, ec2_log_id)
+            for task in pending_coros:
+                task.add_done_callback(done_callback)
+            return MessageGenerator().cmd_timeout(cmd, current_status).add_outline_token(ec2_instance['outline_token'], e).add_ip(ec2_status['ip']).generate()
+        # successfully got result
+        # cancel timeout task
+        for task in pending_coros:
+            task.cancel()
         res_msg = MessageGenerator().cmd_success(cmd, current_status)
         if cmd == 'status':
             res_msg.add_outline_token(
                 ec2_instance['outline_token'], ec2_status['ip']).add_ip(ec2_status['ip'])
         return res_msg.generate()
-    except TimeoutException:
-        return MessageGenerator().cmd_timeout(cmd, current_status).add_outline_token(ec2_instance['outline_token'], e).add_ip(ec2_status['ip']).generate()
     except ClientError as e:
         Ec2OperationLogRepo().error_operation(ec2_log_id, e)
         return MessageGenerator().cmd_error(cmd, e).generate()
