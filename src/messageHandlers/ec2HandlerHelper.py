@@ -74,7 +74,7 @@ def schedule_status_task(ec2_log_id: ObjectId, ec2_id: ObjectId, aws_crediential
         '''
             on get status finish, update Ec2OperationLog, Ec2Status
         '''
-        status, ip = _task.result()[0]
+        status, ip = _task.result()
         update_log_and_instance_status(
             ec2_log_id, ec2_id, status, 'status', user_id, ip)
 
@@ -292,6 +292,8 @@ async def cmd_executor(cmds: list[str], cmd: str, expected_status: str | None, u
     if unfinished_cmd is not None:
         return handle_unfinished_cmd(unfinished_cmd, cmd, current_status)
     if expected_status != None and current_status != expected_status:
+        # status doesn't match, return msg and schedule a status task
+        create_and_schedule_status_task(ec2_id, aws_crediential_id, user_id)
         return MessageGenerator().invalid_status_for_cmd(cmd, expected_status, current_status).generate()
     ec2_log_id = Ec2OperationLogRepo().insert(
         ec2_id, cmd, user_id)
