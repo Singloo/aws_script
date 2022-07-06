@@ -193,7 +193,7 @@ class Ec2Cron(AsyncBaseMessageHandler):
         # check param length
         if len(cmds) not in [2, 3]:
             raise InvalidCmd(
-                'ec2 cron: invalid input, expect [id | alias ] <cron string> <command> \ncron string: hour:minute e.g 23:30 hour:[0:23], minute:[0:59]\n command: start | stop')
+                'ec2 cron: invalid input, expect [ec2 instance id | alias ] <cron string> <command> \ncron string: hour:minute e.g 23:30 hour:[0:23], minute:[0:59]\n command: start | stop')
         # validate each param
         instance, cron_time, _cmd = ec2_cron_validate_and_transform_params(
             cmds, self.user_id)
@@ -212,7 +212,9 @@ class Ec2Cron(AsyncBaseMessageHandler):
             'stop': ([instance['_id']], 'stop', 'running', self.user_id, ec2_stop)
         }
         job: Job = sched.add_job(cmd_executor_cron, args=(
-            ec2_cron_id, *CRON_PARAMS[_cmd]), trigger='cron', hour=hour, minute=minute)
+            ec2_cron_id, *CRON_PARAMS[_cmd]))
+        # job: Job = sched.add_job(cmd_executor_cron, args=(
+        #     ec2_cron_id, *CRON_PARAMS[_cmd]), trigger='cron', hour=hour, minute=minute)
         # set cron job to running
         Ec2CronRepo().run_job(ec2_cron_id, job.id)
         return f'Successfully added a cron job [ID] {ec2_cron_id} [Alias] {alias}'

@@ -17,6 +17,7 @@ from .exceptions import InvalidCmd
 from src.logger.logger import logger
 import re
 from src.db.ec2CronLog import Ec2CronLogRepo
+import traceback
 
 if TYPE_CHECKING:
     from mypy_boto3_ec2.client import EC2Client
@@ -58,9 +59,9 @@ def update_log_and_instance_status(ec2_log_id: ObjectId, ec2_id: ObjectId, statu
     Ec2StatusRepo().upsert_ec2_status(ec2_id, status, cmd, user_id, ip)
 
 
-def schedule_status_task(ec2_log_id: ObjectId, ec2_id: ObjectId, aws_crediential_id: ObjectId, user_id: ObjectId, expected_status: str | None = None):
+def _schedule_status_task(ec2_log_id: ObjectId, ec2_id: ObjectId, aws_crediential_id: ObjectId, user_id: ObjectId, expected_status: str | None = None):
     '''
-        schedule a background job to query ec2 status.
+        schedule a background job to query ec2 status. require ec2_log_id
     '''
     if expected_status is None:
         coro = load_and_get_status_once(ec2_id, aws_crediential_id)
@@ -74,10 +75,17 @@ def schedule_status_task(ec2_log_id: ObjectId, ec2_id: ObjectId, aws_crediential
         '''
             on get status finish, update Ec2OperationLog, Ec2Status
         '''
-        status, ip = _task.result()
-        update_log_and_instance_status(
-            ec2_log_id, ec2_id, status, 'status', user_id, ip)
-
+        try:
+            logger.info(
+                f'[schedule_status_task] schedule task got result {ec2_id}')
+            status, ip = _task.result()
+            update_log_and_instance_status(
+                ec2_log_id, ec2_id, status, 'status', user_id, ip)
+        except CancelledError:
+            logger.info(
+                f'[schedule_status_task] schedule status task, task cancelled {ec2_log_id}')
+            Ec2OperationLogRepo().error_operation(ec2_log_id, 'CancelledError')
+    logger.info(f'[schedule_status_task] scheduled status task {ec2_log_id}')
     task.add_done_callback(_on_finish)
 
 
@@ -85,9 +93,11 @@ def create_and_schedule_status_task(ec2_id: ObjectId, aws_crediential_id: Object
     '''
         create an operation log, and schedule a status task
     '''
+    logger.info(
+        '[create_and_schedule_status_task] create_and_schedule_status_task')
     ec2_log_id = Ec2OperationLogRepo().insert(ec2_id, 'status', user_id)
-    schedule_status_task(ec2_log_id, ec2_id,
-                         aws_crediential_id, user_id, expected_status)
+    _schedule_status_task(ec2_log_id, ec2_id,
+                          aws_crediential_id, user_id, expected_status)
 
 
 async def get_status_until(ec2_id: ObjectId, aws_crediential_id: ObjectId, expected_status: str):
@@ -184,20 +194,27 @@ async def _ec2_start_or_stop(cmd: str, ec2_id: ObjectId, aws_crediential_id: Obj
         try:
             # ins_state = await ins.state
             # prev_state = ins_state['Name']
-            response = await ins.start() if is_start_cmd else await ins.stop()
+            if is_start_cmd:
+                # response = await ins.start()
+                resp_attr = 'StartingInstances'
+                expected_status = 'running'
+            else:
+                # response = await ins.stop()
+                resp_attr = 'StoppingInstances'
+                expected_status = 'stopped'
             logger.info(f'[Instance successfully {cmd}ed]')
-            resp_attr = 'StartingInstances' if is_start_cmd else 'StoppingInstances'
-            curr_state: str = response[resp_attr][0]['CurrentState']['Name']
+            curr_state = 'stopped'
+            # curr_state: str = response[resp_attr][0]['CurrentState']['Name']
             update_log_and_instance_status(
                 ec2_log_id, ec2_id, curr_state, cmd, user_id, None)
-            expected_status = 'running' if is_start_cmd else 'stopped'
             create_and_schedule_status_task(
-                ec2_id, aws_crediential_id, user_id, expected_status)
+                ec2_id, aws_crediential_id, user_id)
             return curr_state
         except Exception as e:
             Ec2OperationLogRepo().error_operation(ec2_log_id, e)
+            traceback.print_exc()
             logger.error(
-                f'[ec2HandlerHelper 196] {cmd} ec2_id: {ec2_id} error: {e}')
+                f'[ec2_start_or_stop] {cmd} ec2_id: {ec2_id} error: {e}')
             return MessageGenerator().cmd_error(cmd, e.args).generate()
 
 
@@ -230,7 +247,7 @@ def init_ec2_status(ec2_id: ObjectId, aws_crediential_id: ObjectId, user_id: Obj
     loop = asyncio.get_event_loop()
     task = loop.create_task(coro)
     task.add_done_callback(lambda x: logger.info(
-        f'[ec2HandlerHelper 229] finish initialization of ec2 status {ec2_id}'))
+        f'[init_ec2_status] finish initialization of ec2 status {ec2_id}'))
 
 
 def get_ec2_instance_status_and_unfinished_cmd(cmds: list[str], user_id: ObjectId):
@@ -264,9 +281,9 @@ def timeout_cmd_callback(cmd: str, ec2_log_id: ObjectId, task: asyncio.Task):
         Ec2OperationLogRepo().timeout_finish_operation(ec2_log_id)
         ec2_log: Ec2OperationLog = Ec2OperationLogRepo().find_by_id(ec2_log_id)
         logger.info(
-            f'[ec2HandlerHelper 267] Command: {cmd} finished, task result: {task.result()}, time consumed: {(ec2_log["finished_at"] - ec2_log["started_at"]).seconds}')
+            f'[timeout_cmd_callback] Command: {cmd} finished, task result: {task.result()}, time consumed: {(ec2_log["finished_at"] - ec2_log["started_at"]).seconds}')
     except CancelledError:
-        logger.info(f'[ec2HandlerHelper 269] task cancel error')
+        logger.info(f'[timeout_cmd_callback] task cancel error')
 
 
 async def cmd_executor(cmds: list[str], cmd: str, expected_status: str | None, user_id: ObjectId, instance_operation: Callable[[ObjectId, ObjectId, ObjectId, ObjectId], str]):
@@ -285,12 +302,16 @@ async def cmd_executor(cmds: list[str], cmd: str, expected_status: str | None, u
         6. run command, race with 4s timeout
     '''
     assert_cmds_length(cmds)
+    # get ec2 instance, ec2 status, and unfinished command
     ec2_instance, ec2_status, unfinished_cmd = get_ec2_instance_status_and_unfinished_cmd(
         cmds, user_id)
     current_status = ec2_status['status']
     ec2_id, aws_crediential_id = ec2_instance['_id'], ec2_instance['aws_crediential_id']
+    # if has unfinished cmd, return
     if unfinished_cmd is not None:
         return handle_unfinished_cmd(unfinished_cmd, cmd, current_status)
+    # if has expected status, and doesn't match current status, return.
+    # start and stop command will have a expected status
     if expected_status != None and current_status != expected_status:
         # status doesn't match, return msg and schedule a status task
         create_and_schedule_status_task(ec2_id, aws_crediential_id, user_id)
@@ -304,9 +325,10 @@ async def cmd_executor(cmds: list[str], cmd: str, expected_status: str | None, u
         current_status = res[0]
         if isinstance(current_status, TimeoutException):
             # timeout
-            logger.info(f'[ec2HandlerHelper 302] timout exception')
+            logger.info(f'[cmd_executor] timout exception')
             done_callback = partial(timeout_cmd_callback, cmd, ec2_log_id)
             for task in pending_coros:
+                logger.info(f'[cmd_executor] task add callback')
                 task.add_done_callback(done_callback)
             return MessageGenerator().cmd_timeout(cmd, current_status).add_outline_token(ec2_instance['outline_token'], e).add_ip(ec2_status['ip']).generate()
         # successfully got result
@@ -329,12 +351,17 @@ def cmd_executor_cron(cron_id: ObjectId, cmds: list[str], cmd: str, expected_sta
     '''
     try:
         _id = Ec2CronLogRepo().insert(cron_id, cmd)
+        loop = asyncio.new_event_loop()
         coro = cmd_executor(cmds, cmd, expected_status,
                             user_id, instance_operation)
-        res = asyncio.run(coro)
+        res = loop.run_until_complete(coro)
+
+        logger.info(f'[cmd_executor_cron] task done')
         Ec2CronLogRepo().finish(_id, res)
+        loop.run_forever()
     except Exception as e:
-        logger.error(f'[ec2HandlerHelper 306] {e}')
+        traceback.print_exc()
+        logger.error(f'[cmd_executor_cron] error {e}')
         Ec2CronLogRepo().error(_id, e)
 
 

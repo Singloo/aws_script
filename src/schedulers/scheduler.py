@@ -11,4 +11,5 @@ jobstores = {
     'mongo':  MongoDBJobStore(
         client=Mongo()._mongoClient, database=MONGO_DBNAME, collection='schedules')
 }
-sched = BackgroundScheduler(jobstores=jobstores, timezone=CHINA_TIME)
+sched = BackgroundScheduler(
+    jobstores=jobstores, timezone=CHINA_TIME)
