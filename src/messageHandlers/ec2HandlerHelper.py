@@ -1,4 +1,5 @@
 import asyncio
+from asyncio import AbstractEventLoop
 from asyncio import CancelledError
 from typing import TYPE_CHECKING, Coroutine, Callable
 from bson.objectid import ObjectId
@@ -59,7 +60,7 @@ def update_log_and_instance_status(ec2_log_id: ObjectId, ec2_id: ObjectId, statu
     Ec2StatusRepo().upsert_ec2_status(ec2_id, status, cmd, user_id, ip)
 
 
-def _schedule_status_task(ec2_log_id: ObjectId, ec2_id: ObjectId, aws_crediential_id: ObjectId, user_id: ObjectId, expected_status: str | None = None):
+def _schedule_status_task(ec2_log_id: ObjectId, ec2_id: ObjectId, aws_crediential_id: ObjectId, user_id: ObjectId, expected_status: str | None = None, stop_event: asyncio.Event = None):
     '''
         schedule a background job to query ec2 status. require ec2_log_id
     '''
@@ -85,19 +86,27 @@ def _schedule_status_task(ec2_log_id: ObjectId, ec2_id: ObjectId, aws_credientia
             logger.info(
                 f'[schedule_status_task] schedule status task, task cancelled {ec2_log_id}')
             Ec2OperationLogRepo().error_operation(ec2_log_id, 'CancelledError')
+        finally:
+            if stop_event != None:
+                stop_event.set()
     logger.info(f'[schedule_status_task] scheduled status task {ec2_log_id}')
     task.add_done_callback(_on_finish)
+    # if stop_event is not None:
+    #     stop_event_task = loop.create_task(stop_event.wait())
+    #     while(stop_event_task.done() is False):
+    #         pass
+    #     logger.info(f'[_schedule_status_task done]')
 
 
-def create_and_schedule_status_task(ec2_id: ObjectId, aws_crediential_id: ObjectId, user_id: ObjectId, expected_status: str | None = None):
+def create_and_schedule_status_task(ec2_id: ObjectId, aws_crediential_id: ObjectId, user_id: ObjectId, expected_status: str | None = None, stop_event: asyncio.Event = None):
     '''
         create an operation log, and schedule a status task
     '''
     logger.info(
-        '[create_and_schedule_status_task] create_and_schedule_status_task')
+        '[create_and_schedule_status_task] start')
     ec2_log_id = Ec2OperationLogRepo().insert(ec2_id, 'status', user_id)
     _schedule_status_task(ec2_log_id, ec2_id,
-                          aws_crediential_id, user_id, expected_status)
+                          aws_crediential_id, user_id, expected_status, stop_event)
 
 
 async def get_status_until(ec2_id: ObjectId, aws_crediential_id: ObjectId, expected_status: str):
@@ -180,7 +189,7 @@ def _get_ec2_instance(user_id: ObjectId, vague_id: str | None,) -> Ec2Instance:
     return Ec2InstanceRepo().find_by_vague_id(vague_id, user_id)
 
 
-async def _ec2_start_or_stop(cmd: str, ec2_id: ObjectId, aws_crediential_id: ObjectId, ec2_log_id: ObjectId, user_id: ObjectId):
+async def _ec2_start_or_stop(cmd: str, ec2_id: ObjectId, aws_crediential_id: ObjectId, ec2_log_id: ObjectId, user_id: ObjectId, stop_event: asyncio.Event = None):
     '''
         start or stop
         1. start | stop
@@ -195,20 +204,19 @@ async def _ec2_start_or_stop(cmd: str, ec2_id: ObjectId, aws_crediential_id: Obj
             # ins_state = await ins.state
             # prev_state = ins_state['Name']
             if is_start_cmd:
-                # response = await ins.start()
+                response = await ins.start()
                 resp_attr = 'StartingInstances'
                 expected_status = 'running'
             else:
-                # response = await ins.stop()
+                response = await ins.stop()
                 resp_attr = 'StoppingInstances'
                 expected_status = 'stopped'
             logger.info(f'[Instance successfully {cmd}ed]')
-            curr_state = 'stopped'
-            # curr_state: str = response[resp_attr][0]['CurrentState']['Name']
+            curr_state: str = response[resp_attr][0]['CurrentState']['Name']
             update_log_and_instance_status(
                 ec2_log_id, ec2_id, curr_state, cmd, user_id, None)
             create_and_schedule_status_task(
-                ec2_id, aws_crediential_id, user_id)
+                ec2_id, aws_crediential_id, user_id, expected_status, stop_event)
             return curr_state
         except Exception as e:
             Ec2OperationLogRepo().error_operation(ec2_log_id, e)
@@ -286,7 +294,7 @@ def timeout_cmd_callback(cmd: str, ec2_log_id: ObjectId, task: asyncio.Task):
         logger.info(f'[timeout_cmd_callback] task cancel error')
 
 
-async def cmd_executor(cmds: list[str], cmd: str, expected_status: str | None, user_id: ObjectId, instance_operation: Callable[[ObjectId, ObjectId, ObjectId, ObjectId], str]):
+async def cmd_executor(cmds: list[str], cmd: str, expected_status: str | None, user_id: ObjectId, instance_operation: Callable[[ObjectId, ObjectId, ObjectId, ObjectId], str], stop_event: asyncio.Event = None):
     '''
         execute command
         cmds: input params
@@ -314,13 +322,14 @@ async def cmd_executor(cmds: list[str], cmd: str, expected_status: str | None, u
     # start and stop command will have a expected status
     if expected_status != None and current_status != expected_status:
         # status doesn't match, return msg and schedule a status task
-        create_and_schedule_status_task(ec2_id, aws_crediential_id, user_id)
+        create_and_schedule_status_task(
+            ec2_id, aws_crediential_id, user_id, stop_event)
         return MessageGenerator().invalid_status_for_cmd(cmd, expected_status, current_status).generate()
     ec2_log_id = Ec2OperationLogRepo().insert(
         ec2_id, cmd, user_id)
     try:
         coro = instance_operation(
-            ec2_id, aws_crediential_id, ec2_log_id, user_id)
+            ec2_id, aws_crediential_id, ec2_log_id, user_id, stop_event)
         res, pending_coros = await async_race(coro, timeout(4.0), cancel_pending=False)
         current_status = res[0]
         if isinstance(current_status, TimeoutException):
@@ -339,6 +348,10 @@ async def cmd_executor(cmds: list[str], cmd: str, expected_status: str | None, u
         if cmd == 'status':
             res_msg.add_outline_token(
                 ec2_instance['outline_token'], ec2_status['ip']).add_ip(ec2_status['ip'])
+        if stop_event is not None:
+            logger.info(f'[cmd_executor] wait for stop event signal')
+            await stop_event.wait()
+            logger.info(f'[cmd_executor] stop event signal received')
         return res_msg.generate()
     except ClientError as e:
         Ec2OperationLogRepo().error_operation(ec2_log_id, e)
@@ -351,14 +364,12 @@ def cmd_executor_cron(cron_id: ObjectId, cmds: list[str], cmd: str, expected_sta
     '''
     try:
         _id = Ec2CronLogRepo().insert(cron_id, cmd)
-        loop = asyncio.new_event_loop()
+        stop_event = asyncio.Event()
         coro = cmd_executor(cmds, cmd, expected_status,
-                            user_id, instance_operation)
-        res = loop.run_until_complete(coro)
-
+                            user_id, instance_operation, stop_event)
+        res = asyncio.run(coro)
         logger.info(f'[cmd_executor_cron] task done')
         Ec2CronLogRepo().finish(_id, res)
-        loop.run_forever()
     except Exception as e:
         traceback.print_exc()
         logger.error(f'[cmd_executor_cron] error {e}')

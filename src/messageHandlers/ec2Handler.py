@@ -212,9 +212,7 @@ class Ec2Cron(AsyncBaseMessageHandler):
             'stop': ([instance['_id']], 'stop', 'running', self.user_id, ec2_stop)
         }
         job: Job = sched.add_job(cmd_executor_cron, args=(
-            ec2_cron_id, *CRON_PARAMS[_cmd]))
-        # job: Job = sched.add_job(cmd_executor_cron, args=(
-        #     ec2_cron_id, *CRON_PARAMS[_cmd]), trigger='cron', hour=hour, minute=minute)
+            ec2_cron_id, *CRON_PARAMS[_cmd]), trigger='cron', hour=hour, minute=minute)
         # set cron job to running
         Ec2CronRepo().run_job(ec2_cron_id, job.id)
         return f'Successfully added a cron job [ID] {ec2_cron_id} [Alias] {alias}'
