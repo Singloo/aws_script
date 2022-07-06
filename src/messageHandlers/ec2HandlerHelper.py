@@ -231,7 +231,7 @@ ec2_start = partial(_ec2_start_or_stop, 'start')
 ec2_stop = partial(_ec2_start_or_stop, 'stop')
 
 
-async def ec2_status(ec2_id: ObjectId, aws_crediential_id: ObjectId, ec2_log_id: ObjectId, user_id: ObjectId):
+async def ec2_status(ec2_id: ObjectId, aws_crediential_id: ObjectId, ec2_log_id: ObjectId, user_id: ObjectId, *args):
     '''
         get ec2 status
     '''
