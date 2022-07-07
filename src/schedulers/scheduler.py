@@ -13,9 +13,6 @@ mongoClient = MongoClient(
     username=MONGO_USERNAME, password=MONGO_PASSWORD,
     connect=True,
 )
-jobstores = {
-    'mongo':  MongoDBJobStore(
-        client=mongoClient, database=MONGO_DBNAME, collection='schedules')
-}
-sched = BackgroundScheduler(
-    jobstores=jobstores, timezone=CHINA_TIME)
+sched = BackgroundScheduler(timezone=CHINA_TIME)
+sched.add_jobstore('mongodb', client=mongoClient,
+                   database=MONGO_DBNAME, collection='schedules')
