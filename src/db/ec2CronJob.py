@@ -43,17 +43,22 @@ class Ec2CronRepo(Mongo):
     def find_by_time(self, ec2_id: ObjectId, cmd: str, hour: int, minute: int) -> Ec2Cron | None:
         return self.col.find_one({
             'ec2_id': ec2_id,
-            'commnand': cmd,
+            'command': cmd,
             'hour': hour,
             'minute': minute,
-            'active': True,
-            'running': True
         })
 
     def find_all(self, user_id: ObjectId):
         cursor = self.col.find({'user_id': user_id}).sort(
             [('created_at', -1)])
         return list(cursor)
+
+    def find_by_alias(self, user_id: ObjectId, alias: str):
+        res = self.col.find_one({
+            'user_id': user_id,
+            'alias': alias,
+        })
+        return res
 
     def activate(self, _id: ObjectId, job_id: str):
         return self.col.update_one({

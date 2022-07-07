@@ -182,16 +182,18 @@ class Ec2CronStop(AsyncBaseMessageHandler):
                 'ec2 cron deactivate: invalid input, expect id or alias')
         identifier = cmds[0]
         repo = Ec2CronRepo()
-        ins = repo.find_by_vague_id(identifier, self.user_id)
+        ins: Ec2Cron = repo.find_by_vague_id(identifier, self.user_id)
         if ins is None:
             return 'No such cron job'
+        if ins['running'] is False:
+            return 'Job has been stopped'
         try:
             sched.remove_job(ins['job_id'])
             logger.info(f"[ec2 cron deactivate] job removed {ins['job_id']}")
         except JobLookupError:
             logger.info(f'[ec2 cron deactivate] job look up error')
         repo.deactivate(ins['_id'])
-        return f'Success, cron job: {identifier} has been deactivated.'
+        return f'Success, cron job: {identifier} has been stopped.'
 
 
 class Ec2CronRun(AsyncBaseMessageHandler):
@@ -204,10 +206,14 @@ class Ec2CronRun(AsyncBaseMessageHandler):
         ec2_cron: Ec2Cron = repo.find_by_vague_id(identifier, self.user_id)
         if ec2_cron is None:
             return 'No such cron job'
+        if ec2_cron['running'] is True:
+            return 'Cron job is already running'
         ec2_ins = Ec2InstanceRepo().find_by_id(ec2_cron['ec2_id'])
         job: Job = ec2_cron_schedule_job(
             ec2_ins['_id'], self.user_id, ec2_cron['_id'], ec2_cron['command'], ec2_cron['hour'], ec2_cron['minute'])
+        logger.info(f'[ec2 cron run] job scheduled {job.id}')
         Ec2CronRepo().activate(ec2_cron['_id'], job.id)
+        return f'Success, Job [{identifier}] is running'
 
 
 class Ec2CronCmd(AsyncBaseMessageHandler):
@@ -224,6 +230,8 @@ class Ec2CronCmd(AsyncBaseMessageHandler):
         existed = Ec2CronRepo().find_by_time(
             instance['_id'], _cmd, hour, minute)
         if existed is not None:
+            if existed['running'] is False:
+                return f"You have a same cron job added already, but it is stopped, if you want to run it again, please input: [ec2 cron run {existed['alias']}]"
             return MessageGenerator().existed('cron job')
         # insert into db set running false
         ec2_cron_id, alias = Ec2CronRepo().insert(
