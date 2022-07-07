@@ -19,6 +19,8 @@ from src.logger.logger import logger
 import re
 from src.db.ec2CronLog import Ec2CronLogRepo
 import traceback
+from src.schedulers import sched
+from apscheduler.job import Job
 
 if TYPE_CHECKING:
     from mypy_boto3_ec2.client import EC2Client
@@ -420,3 +422,16 @@ def ec2_cron_validate_and_transform_params(cmds: list[str], user_id: ObjectId) -
     cron_time = _ec2_cron_validate_cron_string(cron_string)
     _cmd = _ec2_cron_validate_cmd(cmd)
     return instance, cron_time, _cmd
+
+
+def ec2_cron_schedule_job(ec2_id: ObjectId, user_id: ObjectId, ec2_cron_id: ObjectId, cmd: str, hour: int, minute: int):
+    '''
+        schedule cron job
+    '''
+    CRON_PARAMS = {
+        'start': ([ec2_id],  'start', 'stopped', user_id, ec2_start),
+        'stop': ([ec2_id], 'stop', 'running', user_id, ec2_stop)
+    }
+    job: Job = sched.add_job(cmd_executor_cron, args=(
+        ec2_cron_id, *CRON_PARAMS[cmd]), trigger='cron', hour=hour, minute=minute)
+    return job

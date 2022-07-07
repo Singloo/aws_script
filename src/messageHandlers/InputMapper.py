@@ -24,10 +24,8 @@ class InputMapperEntry(AsyncBaseMessageHandler):
         reply_msg: str = None
         try:
             reply_msg = await super().__call__(cmds)
-            logger.info(f'[InputMapper 27] response: {reply_msg}')
             CommandLogRepo().finish(
                 self.params['origin_input'], self.user_id, started_at, datetime.now(), reply_msg)
-            logger.info(f'[InputMapper 28] {reply_msg}')
         except NoSuchHandler as e:
             err = e
             reply_msg = 'What?'

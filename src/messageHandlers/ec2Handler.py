@@ -2,7 +2,7 @@ import re
 from src.logger import logger
 from src.db.redis import CacheKeys, remove
 from src.db.exceptions import ExceedMaximumNumber
-from src.types.type import Ec2Instance, Ec2Status
+from src.types.type import Ec2Instance, Ec2Status, Ec2Cron
 from . import AsyncBaseMessageHandler
 from .InputValidator import ValidatorManager, Validator, SessionExpired, ValidatorInvalidAndExceedMaximumTimes, ValidatorInvalidInput, SessionFinished, NoSuchSession
 from .exceptions import InvalidCmd
@@ -15,9 +15,9 @@ from .helper import test_aws_resource
 from .messageGenerator import MessageGenerator
 from src.schedulers.scheduler import sched
 from apscheduler.job import Job
-from .ec2HandlerHelper import validate_outline, cmd_executor, ec2_start, ec2_status, ec2_stop, ec2_cron_validate_and_transform_params, cmd_executor_cron, init_ec2_status
+from .ec2HandlerHelper import validate_outline, cmd_executor, ec2_start, ec2_status, ec2_stop, ec2_cron_validate_and_transform_params, cmd_executor_cron, init_ec2_status, ec2_cron_schedule_job
 import src.utils.crypto as Crypto
-
+from apscheduler.jobstores.base import JobLookupError
 EC2_VALIDATORS = [
     Validator(
         prompt='Please input ec2 instance id, e.g. i-03868cxxxxfec037',
@@ -175,21 +175,43 @@ class Ec2CronList(AsyncBaseMessageHandler):
         return msgGen.generate()
 
 
-class Ec2CronRm(AsyncBaseMessageHandler):
+class Ec2CronStop(AsyncBaseMessageHandler):
     async def __call__(self, cmds: list[str]):
         if len(cmds) != 1:
-            raise InvalidCmd('ec2 cron rm: invalid input, expect id or alias')
+            raise InvalidCmd(
+                'ec2 cron deactivate: invalid input, expect id or alias')
         identifier = cmds[0]
         repo = Ec2CronRepo()
         ins = repo.find_by_vague_id(identifier, self.user_id)
         if ins is None:
             return 'No such cron job'
-        repo.delete_from_id(ins['_id'])
-        return f'Success, cron job: {identifier} has been removed.'
+        try:
+            sched.remove_job(ins['job_id'])
+            logger.info(f"[ec2 cron deactivate] job removed {ins['job_id']}")
+        except JobLookupError:
+            logger.info(f'[ec2 cron deactivate] job look up error')
+        repo.deactivate(ins['_id'])
+        return f'Success, cron job: {identifier} has been deactivated.'
 
 
-class Ec2Cron(AsyncBaseMessageHandler):
+class Ec2CronRun(AsyncBaseMessageHandler):
     async def __call__(self, cmds: list[str]):
+        if len(cmds) != 1:
+            raise InvalidCmd(
+                'ec2 cron activate: invalid input, expect id or alias')
+        identifier = cmds[0]
+        repo = Ec2CronRepo()
+        ec2_cron: Ec2Cron = repo.find_by_vague_id(identifier, self.user_id)
+        if ec2_cron is None:
+            return 'No such cron job'
+        ec2_ins = Ec2InstanceRepo().find_by_id(ec2_cron['ec2_id'])
+        job: Job = ec2_cron_schedule_job(
+            ec2_ins['_id'], self.user_id, ec2_cron['_id'], ec2_cron['command'], ec2_cron['hour'], ec2_cron['minute'])
+        Ec2CronRepo().activate(ec2_cron['_id'], job.id)
+
+
+class Ec2CronCmd(AsyncBaseMessageHandler):
+    async def _fallback(self, cmds: list[str]):
         # check param length
         if len(cmds) not in [2, 3]:
             raise InvalidCmd(
@@ -207,14 +229,10 @@ class Ec2Cron(AsyncBaseMessageHandler):
         ec2_cron_id, alias = Ec2CronRepo().insert(
             instance['_id'], _cmd, hour, minute, self.user_id)
         # schedule job
-        CRON_PARAMS = {
-            'start': ([instance['_id']],  'start', 'stopped', self.user_id, ec2_start),
-            'stop': ([instance['_id']], 'stop', 'running', self.user_id, ec2_stop)
-        }
-        job: Job = sched.add_job(cmd_executor_cron, args=(
-            ec2_cron_id, *CRON_PARAMS[_cmd]), trigger='cron', hour=hour, minute=minute)
+        job: Job = ec2_cron_schedule_job(
+            instance['_id'], self.user_id, ec2_cron_id, _cmd, hour, minute)
         # set cron job to running
-        Ec2CronRepo().run_job(ec2_cron_id, job.id)
+        Ec2CronRepo().job_run(ec2_cron_id, job.id)
         return f'Successfully added a cron job [ID] {ec2_cron_id} [Alias] {alias}'
 
     @property
@@ -222,8 +240,12 @@ class Ec2Cron(AsyncBaseMessageHandler):
         return Ec2CronList(self.params)
 
     @property
-    def rm(self):
-        return Ec2CronRm(self.params)
+    def run(self):
+        return Ec2CronRun(self.params)
+
+    @property
+    def stop(self):
+        return Ec2CronStop(self.params)
 
 
 class Ec2Handler(AsyncBaseMessageHandler):
@@ -261,4 +283,4 @@ class Ec2Handler(AsyncBaseMessageHandler):
 
     @property
     def cron(self):
-        return Ec2Cron(self.params)
+        return Ec2CronCmd(self.params)
