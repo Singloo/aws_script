@@ -5,9 +5,9 @@ from bson.objectid import ObjectId
 from datetime import datetime
 
 MAX_RUNTIME = {
-    'start': 60*5,
+    'start': 30,
     'status': 20,
-    'stop': 60
+    'stop': 30
 }
 
 
