@@ -85,3 +85,8 @@ class Ec2CronRepo(Mongo):
         return self.col.delete_many({
             'ec2_id': {'$in': ids}
         }).deleted_count
+    
+    def find_by_ec2_ids(self, ids: list[ObjectId]):
+        return self.col.find({
+            'ec2_id': {'$in': ids}
+        })

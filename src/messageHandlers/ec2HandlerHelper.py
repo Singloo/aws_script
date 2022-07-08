@@ -1,7 +1,6 @@
 import asyncio
-from asyncio import AbstractEventLoop
 from asyncio import CancelledError
-from typing import TYPE_CHECKING, Coroutine, Callable
+from typing import TYPE_CHECKING, Callable
 from bson.objectid import ObjectId
 
 from src.db.awsCrediential import AwsCredientialRepo
@@ -24,6 +23,7 @@ from src.db.ec2CronLog import Ec2CronLogRepo
 import traceback
 from src.schedulers import sched
 from apscheduler.job import Job
+from apscheduler.jobstores.base import JobLookupError
 
 if TYPE_CHECKING:
     from mypy_boto3_ec2.client import EC2Client
@@ -464,5 +464,18 @@ def rm_ec2(ec2_id: ObjectId = None, aws_id: ObjectId = None):
         ec2_deleted_count = Ec2InstanceRepo().rm_by_aws_crediential_id(aws_id)
         instances = Ec2InstanceRepo().find_by_aws_id(aws_id)
         ids = [instance['_id'] for instance in instances]
+    # try to delete schedules
+    rm_cron_schedules(ids)
+    # remove cron jobs from DB
     ec2_cron_deleted_count = Ec2CronRepo().rm_by_ec2_ids(ids)
     return ec2_deleted_count, ec2_cron_deleted_count
+
+
+def rm_cron_schedules(ec2_ids: list[ObjectId]):
+    cursor = Ec2CronRepo().find_by_ec2_ids(ec2_ids)
+    for ins in cursor:
+        try:
+            sched.remove_job(ins['job_id'])
+            logger.info(f'[rm_cron_schedules] job {ins["job_id"]} removed')
+        except JobLookupError:
+            logger.info(f'[rm_cron_schedules] job {ins["job_id"]} not found')
