@@ -15,7 +15,7 @@ from .helper import test_aws_resource
 from .messageGenerator import MessageGenerator
 from src.schedulers.scheduler import sched
 from apscheduler.job import Job
-from .ec2HandlerHelper import validate_outline, cmd_executor, ec2_start, ec2_status, ec2_stop, ec2_cron_validate_and_transform_params, cmd_executor_cron, init_ec2_status, ec2_cron_schedule_job
+from .ec2HandlerHelper import validate_outline, cmd_executor, ec2_start, ec2_status, ec2_stop, ec2_cron_validate_and_transform_params, rm_ec2, init_ec2_status, ec2_cron_schedule_job
 import src.utils.crypto as Crypto
 from apscheduler.jobstores.base import JobLookupError
 EC2_VALIDATORS = [
@@ -127,8 +127,8 @@ class Ec2Rm(AsyncBaseMessageHandler):
         ins = repo.find_by_vague_id(identifier, self.user_id)
         if ins is None:
             return 'No such instance'
-        repo.delete_from_id(ins['_id'])
-        return f'Success, instance: {identifier} has been removed.'
+        ec2_deleted_count, ec2_cron_deleted_count = rm_ec2(ins['_id'])
+        return f'Success, instance: {identifier} has been removed. {ec2_cron_deleted_count} ec2 cron job(s) are also been removed'
 
 
 class Ec2Start(AsyncBaseMessageHandler):

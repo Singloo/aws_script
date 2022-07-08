@@ -80,3 +80,8 @@ class Ec2CronRepo(Mongo):
                 'running': False
             }
         })
+
+    def rm_by_ec2_ids(self, ids: list[ObjectId]):
+        return self.col.delete_many({
+            'ec2_id': {'$in': ids}
+        }).deleted_count

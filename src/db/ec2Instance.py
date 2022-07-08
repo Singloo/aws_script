@@ -2,8 +2,7 @@ from .mongo import Mongo
 from src.types import Ec2Instance
 from bson.objectid import ObjectId
 from .exceptions import ExceedMaximumNumber
-from .helper import ensure_decrypted, is_int
-from functools import partial
+from .helper import decrypt_ec2_instance_cursor, decrypt_ec2_instance
 from pymongo import IndexModel
 
 
@@ -31,11 +30,11 @@ class Ec2InstanceRepo(Mongo):
 
     def find_by_id(self, _id: ObjectId) -> Ec2Instance:
         res = super().find_by_id(_id)
-        return ensure_decrypted(res, ['instance_id']) if res != None else None
+        return decrypt_ec2_instance(res)
 
     def find_by_alias(self, user_id: ObjectId, alias: str):
         res: Ec2Instance = super().find_by_alias(user_id, alias)
-        return ensure_decrypted(res, ['instance_id']) if res != None else None
+        return decrypt_ec2_instance(res)
 
     def update_alias(self, _id: ObjectId, user_id: ObjectId, newAlias: str):
         res = super().find_by_alias(user_id, newAlias)
@@ -53,4 +52,21 @@ class Ec2InstanceRepo(Mongo):
     def find_all(self, user_id: ObjectId) -> list[Ec2Instance]:
         cursor = self.col.find({'user_id': user_id, 'active': True}).sort(
             [('created_at', -1)])
-        return list(map(partial(ensure_decrypted, keys_to_decrypt=['instance_id']), list(cursor)))
+        return decrypt_ec2_instance_cursor(cursor)
+
+    def rm_by_aws_crediential_id(self, aws_crediential_id: ObjectId):
+        return self.col.update_many({
+            'aws_crediential_id': aws_crediential_id,
+            'active': True
+        }, {
+            '$set': {
+                'active': False
+            }
+        }).modified_count
+
+    def find_by_aws_id(self, aws_crediential_id: ObjectId) -> list[Ec2Instance]:
+        cursor = self.col.find({
+            'aws_crediential_id': aws_crediential_id,
+            'active': True
+        }).sort([('created_at', -1)])
+        return decrypt_ec2_instance_cursor(cursor)

@@ -3,6 +3,9 @@ from asyncio import AbstractEventLoop
 from asyncio import CancelledError
 from typing import TYPE_CHECKING, Coroutine, Callable
 from bson.objectid import ObjectId
+
+from src.db.awsCrediential import AwsCredientialRepo
+from src.db.ec2CronJob import Ec2CronRepo
 from .ec2InstanceManager import getEc2InstanceWithCredentialId
 from .messageGenerator import MessageGenerator
 from src.utils.util import async_race, timeout, re_strict_match
@@ -348,8 +351,8 @@ async def cmd_executor(cmds: list[str], cmd: str, expected_status: str | None, u
             task.cancel()
         res_msg = MessageGenerator().cmd_success(cmd, current_status)
         if cmd == 'status':
-            res_msg.add_outline_token(
-                ec2_instance['outline_token'], ec2_status['ip']).add_ip(ec2_status['ip'])
+            res_msg.separator().add_outline_token(
+                ec2_instance['outline_token'], ec2_status['ip']).separator().add_ip(ec2_status['ip'])
         if stop_event is not None:
             logger.info(f'[cmd_executor] wait for stop event signal')
             await stop_event.wait()
@@ -435,3 +438,31 @@ def ec2_cron_schedule_job(ec2_id: ObjectId, user_id: ObjectId, ec2_cron_id: Obje
     job: Job = sched.add_job(cmd_executor_cron, args=(
         ec2_cron_id, *CRON_PARAMS[cmd]), trigger='cron', hour=hour, minute=minute)
     return job
+
+
+def rm_aws(aws_id: ObjectId):
+    '''
+        return 1, ec2 instance deleted count, ec2 cron deleted count
+    '''
+    AwsCredientialRepo().rm_by_id(aws_id)
+    deleted_count = rm_ec2(None, aws_id)
+    return 1, *deleted_count
+
+
+def rm_ec2(ec2_id: ObjectId = None, aws_id: ObjectId = None):
+    '''
+        return ec2 instance deleted count, ec2 cron deleted count
+    '''
+    if int(bool(ec2_id)) + int(bool(aws_id)) != 1:
+        return 0, 0
+    ec2_deleted_count
+    ec2_cron_deleted_count
+    if ec2_id is not None:
+        ec2_deleted_count = Ec2InstanceRepo().rm_by_id(ec2_id).modified_count
+        ids = [ec2_id]
+    if aws_id is not None:
+        ec2_deleted_count = Ec2InstanceRepo().rm_by_aws_crediential_id(aws_id)
+        instances = Ec2InstanceRepo().find_by_aws_id(aws_id)
+        ids = [instance['_id'] for instance in instances]
+    ec2_cron_deleted_count = Ec2CronRepo().rm_by_ec2_ids(ids)
+    return ec2_deleted_count, ec2_cron_deleted_count

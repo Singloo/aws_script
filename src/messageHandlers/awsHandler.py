@@ -11,6 +11,7 @@ from src.utils.util import desensitize_data
 from .exceptions import InvalidCmd
 from .helper import test_aws_resource
 from .messageGenerator import MessageGenerator
+from .ec2HandlerHelper import rm_aws
 
 
 class AwsBind(AsyncBaseMessageHandler):
@@ -82,8 +83,9 @@ class AwsRm(AsyncBaseMessageHandler):
         ins = repo.find_by_vague_id(identifier, self.user_id)
         if ins is None:
             return 'No such instance'
-        repo.delete_from_id(ins['_id'])
-        return f'Success, instance: {identifier} has been removed.'
+        aws_deleted_count, ec2_deleted_count, ec2_cron_deleted_count = rm_aws(
+            ins['_id'])
+        return f'Success, instance: {identifier} has been removed. \n {ec2_deleted_count} ec2 instance(s) and {ec2_cron_deleted_count} ec2 cron job(s) are also been removed.'
 
 
 class AwsHandler(AsyncBaseMessageHandler):

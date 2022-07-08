@@ -91,3 +91,12 @@ class Mongo(object):
         })
         existed_alias = [item['alias'] for item in cursor]
         return list(set(aliases) - {*existed_alias})
+
+    def rm_by_id(self, _id: ObjectId):
+        return self.col.update_one({
+            '_id': _id
+        }, {
+            '$set': {
+                'active': False
+            }
+        })
