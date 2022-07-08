@@ -1,8 +1,8 @@
 from asyncio.log import logger
 from typing import Any
 from . import AsyncBaseMessageHandler
-from .awsHandler import AwsHandler
-from .ec2Handler import Ec2Handler, Ec2Start, Ec2Stop, Ec2StatusCmd
+from .awsHandler import AwsBind, AwsList, AwsRm
+from .ec2Handler import Ec2Start, Ec2Stop, Ec2StatusCmd, Ec2CronCmd, Ec2Bind, Ec2Alias, Ec2List, Ec2Rm
 from src.db.redis import CacheKeys
 from .InputValidator import ValidatorManager, NoSuchSession
 from datetime import datetime
@@ -13,6 +13,58 @@ import traceback
 
 def destruct_msg(msg: str) -> list[str]:
     return msg.lower().strip().replace('_', '').split(' ')
+
+
+class AwsHandler(AsyncBaseMessageHandler):
+    @property
+    def bind(self):
+        return AwsBind(self.params)
+
+    @property
+    def list(self):
+        return AwsList(self.params)
+
+    @property
+    def rm(self):
+        return AwsRm(self.params)
+
+
+class Ec2Handler(AsyncBaseMessageHandler):
+    @property
+    def bind(self):
+        return Ec2Bind(self.params)
+
+    @property
+    def list(self):
+        return Ec2List(self.params)
+
+    @property
+    def rm(self):
+        return Ec2Rm(self.params)
+
+    @property
+    def start(self):
+        return Ec2Start(self.params)
+
+    @property
+    def status(self):
+        return Ec2StatusCmd(self.params)
+
+    @property
+    def state(self):
+        return Ec2StatusCmd(self.params)
+
+    @property
+    def stop(self):
+        return Ec2Stop(self.params)
+
+    @property
+    def alias(self):
+        return Ec2Alias(self.params)
+
+    @property
+    def cron(self):
+        return Ec2CronCmd(self.params)
 
 
 class InputMapperEntry(AsyncBaseMessageHandler):

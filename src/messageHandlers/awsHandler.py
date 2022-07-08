@@ -88,19 +88,6 @@ class AwsRm(AsyncBaseMessageHandler):
         return f'Success, instance: {identifier} has been removed. \n {ec2_deleted_count} ec2 instance(s) and {ec2_cron_deleted_count} ec2 cron job(s) are also been removed.'
 
 
-class AwsHandler(AsyncBaseMessageHandler):
-    @property
-    def bind(self):
-        return AwsBind(self.params)
-
-    @property
-    def list(self):
-        return AwsList(self.params)
-
-    @property
-    def rm(self):
-        return AwsRm(self.params)
-
 
 regions = ["ap", "us", "ca", "eu", "me", "af", "sa", "cn"]
 
