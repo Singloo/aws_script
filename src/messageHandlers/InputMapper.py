@@ -9,6 +9,7 @@ from datetime import datetime
 from src.db.commandLog import CommandLogRepo
 from .exceptions import InvalidCmd, NoSuchHandler
 import traceback
+from .doc import Help
 
 
 class AwsHandler(AsyncBaseMessageHandler):
@@ -122,6 +123,10 @@ class InputMapperEntry(AsyncBaseMessageHandler):
     @property
     def stop(self):
         return Ec2Stop(self.params)
+
+    @property
+    def help(self):
+        return Help(self.params)
 
     async def _tryBind(self):
         aws_cache_key = CacheKeys.aws_validator_key(self.user_id)

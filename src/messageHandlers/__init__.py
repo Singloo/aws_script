@@ -45,6 +45,8 @@ class AsyncBaseMessageHandler():
 
     async def __call__(self, cmds: list[str]):
         try:
+            if len(cmds) == 0:
+                return await self._fallback(cmds)
             first = cmds[0]
             res = getattr(self, first, None)
             if res is None:
