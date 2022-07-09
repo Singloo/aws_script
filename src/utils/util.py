@@ -26,7 +26,7 @@ async def async_race(*fs, cancel_pending=True, callback: Callable[[asyncio.Task]
             continue
         if cancel_pending:
             task.cancel()
-    return [o.result() or o.exception() for o in done], pending
+    return [o.exception() or o.result() for o in done], pending
 
 T = TypeVar('T')
 

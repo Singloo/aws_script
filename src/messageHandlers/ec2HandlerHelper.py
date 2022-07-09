@@ -127,7 +127,6 @@ async def get_status_until(ec2_id: ObjectId, aws_crediential_id: ObjectId, expec
     ip = None
     async with getEc2InstanceWithCredentialId(ec2_id, aws_crediential_id) as ins:
         while state != expected_status or times < max_times:
-            await asyncio.sleep(wait_time)
             state, ip = await load_and_get_ins_state_ip(ins)
             times += 1
         return state, ip
@@ -324,14 +323,14 @@ async def cmd_executor(cmds: list[str], cmd: str, expected_status: str | None, u
         if len(cmds) == 0:
             return 'You don\'t have a default ec2 instance, try to set a default one or start with ec2 bind'
         return 'ec2 instance not found'
-    current_status = ec2_status['status']
+    last_status = ec2_status['status']
     ec2_id, aws_crediential_id = ec2_instance['_id'], ec2_instance['aws_crediential_id']
     # if has unfinished cmd, return
     if unfinished_cmd is not None:
-        return handle_unfinished_cmd(unfinished_cmd, cmd, current_status)
+        return handle_unfinished_cmd(unfinished_cmd, cmd, last_status)
     # if has expected status, and doesn't match current status, return.
     # start and stop command will have a expected status
-    if expected_status != None and current_status != expected_status:
+    if expected_status != None and last_status != expected_status:
         # status doesn't match, return msg and schedule a status task
         create_and_schedule_status_task(
             ec2_id, aws_crediential_id, user_id, stop_event)
@@ -350,7 +349,15 @@ async def cmd_executor(cmds: list[str], cmd: str, expected_status: str | None, u
             for task in pending_coros:
                 logger.info(f'[cmd_executor] task add callback')
                 task.add_done_callback(done_callback)
-            return MessageGenerator().cmd_timeout(cmd, current_status).add_outline_token(ec2_instance['outline_token'], e).add_ip(ec2_status['ip']).generate()
+
+            outline_token = ec2_instance.get('outline_token', None)
+            ip = ec2_status.get('ip', None)
+            resp_msg = MessageGenerator().cmd_timeout(cmd, last_status)
+            if ip is not None:
+                if outline_token is not None:
+                    resp_msg.separator().add_outline_token(outline_token, ip)
+                resp_msg.separator().add_ip(ip)
+            return resp_msg.generate()
         # successfully got result
         # cancel timeout task
         for task in pending_coros:
