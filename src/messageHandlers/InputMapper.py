@@ -1,18 +1,14 @@
 from asyncio.log import logger
 from typing import Any
 from . import AsyncBaseMessageHandler
-from .awsHandler import AwsBind, AwsList, AwsRm
-from .ec2Handler import Ec2Start, Ec2Stop, Ec2StatusCmd, Ec2CronCmd, Ec2Bind, Ec2Alias, Ec2List, Ec2Rm
+from .awsHandler import AwsBind, AwsList, AwsRm, AwsDefault
+from .ec2Handler import Ec2Start, Ec2Stop, Ec2StatusCmd, Ec2CronCmd, Ec2Bind, Ec2Alias, Ec2List, Ec2Rm, Ec2Default
 from src.db.redis import CacheKeys
 from .InputValidator import ValidatorManager, NoSuchSession
 from datetime import datetime
 from src.db.commandLog import CommandLogRepo
 from .exceptions import InvalidCmd, NoSuchHandler
 import traceback
-
-
-def destruct_msg(msg: str) -> list[str]:
-    return msg.lower().strip().replace('_', '').split(' ')
 
 
 class AwsHandler(AsyncBaseMessageHandler):
@@ -27,6 +23,10 @@ class AwsHandler(AsyncBaseMessageHandler):
     @property
     def rm(self):
         return AwsRm(self.params)
+
+    @property
+    def default(self):
+        return AwsDefault(self.params)
 
 
 class Ec2Handler(AsyncBaseMessageHandler):
@@ -65,6 +65,10 @@ class Ec2Handler(AsyncBaseMessageHandler):
     @property
     def cron(self):
         return Ec2CronCmd(self.params)
+
+    @property
+    def default(self):
+        return Ec2Default(self.params)
 
 
 class InputMapperEntry(AsyncBaseMessageHandler):

@@ -93,6 +93,9 @@ class Mongo(object):
         return list(set(aliases) - {*existed_alias})
 
     def rm_by_id(self, _id: ObjectId):
+        '''
+            set active to false, set default to false
+        '''
         return self.col.update_one({
             '_id': _id
         }, {
@@ -101,3 +104,19 @@ class Mongo(object):
                 'default': False
             })
         })
+
+    def set_new_default(self, user_id: ObjectId, _id: ObjectId):
+        self.col.update_many({
+            'user_id': user_id
+        }, {
+            '$set': self.add_updated_at({
+                'default': False
+            })
+        })
+        return self.col.update_one({
+            '_id': _id
+        }, {
+            '$set': self.add_updated_at({
+                'default': True
+            })
+        }).modified_count

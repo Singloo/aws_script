@@ -255,3 +255,13 @@ class Ec2CronCmd(AsyncBaseMessageHandler):
     def stop(self):
         return Ec2CronStop(self.params)
 
+
+class Ec2Default(AsyncBaseMessageHandler):
+    async def __call__(self, cmds: list[str]):
+        if len(cmds) != 1:
+            raise InvalidCmd('ec2 default: invalid input, expect id or alias')
+        ins = Ec2InstanceRepo().find_by_vague_id(cmds[0], self.user_id)
+        if ins is None:
+            return 'No such instance'
+        Ec2InstanceRepo().set_new_default(self.user_id, ins['_id'])
+        return f'Success, instance: [{cmds[0]}] is now the default instance.'

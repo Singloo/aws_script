@@ -88,6 +88,16 @@ class AwsRm(AsyncBaseMessageHandler):
         return f'Success, instance: [{identifier}] has been removed. \n [{ec2_deleted_count}] ec2 instance(s) and [{ec2_cron_deleted_count}] ec2 cron job(s) are also been removed.'
 
 
+class AwsDefault(AsyncBaseMessageHandler):
+    async def __call__(self, cmds: list[str]):
+        if len(cmds) != 1:
+            raise InvalidCmd('aws default: invalid input, expect id or alias')
+        ins = AwsCredientialRepo().find_by_vague_id(cmds[0], self.user_id)
+        if ins is None:
+            return 'No such instance'
+        AwsCredientialRepo().set_new_default(self.user_id, ins['_id'])
+        return f'Success, instance: [{cmds[0]}] is now the default instance.'
+
 
 regions = ["ap", "us", "ca", "eu", "me", "af", "sa", "cn"]
 

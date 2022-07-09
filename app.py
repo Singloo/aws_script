@@ -41,10 +41,11 @@ async def main_post(request: Request) -> HTTPResponse:
         fromUser = recMsg.ToUserName
         userRepo = UserRepo()
         user_id = userRepo.find_by_wechat_id(toUser)
+        normalized_msg = recMsg.Content.lower().strip().replace('_', '').split(' ')
         content = await InputMapperEntry(params={
             'user_id': user_id,
             'origin_input': recMsg.Content
-        })(recMsg.Content.split(' '))
+        })(normalized_msg)
         logger.info(f'[app.py 48] [{recMsg.FromUserName}] {content}')
         replyMsg = reply.TextMsg(toUser, fromUser, content)
         await request.respond(text(replyMsg.send()))
@@ -52,7 +53,7 @@ async def main_post(request: Request) -> HTTPResponse:
         return text('success')
 
 
-@app.get('/wx')
+@ app.get('/wx')
 async def main_get(request: Request) -> HTTPResponse:
     resp = wechat_verification(request.args)
     if resp is None:
