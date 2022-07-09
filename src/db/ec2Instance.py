@@ -19,7 +19,8 @@ class Ec2InstanceRepo(Mongo):
 
     def insert(self, doc: Ec2Instance, user_id: ObjectId) -> ObjectId:
         existing = self.col.count_documents({
-            'user_id': user_id
+            'user_id': user_id,
+            'active': True
         })
         if existing > 100:
             raise ExceedMaximumNumber
@@ -59,9 +60,10 @@ class Ec2InstanceRepo(Mongo):
             'aws_crediential_id': aws_crediential_id,
             'active': True
         }, {
-            '$set': {
-                'active': False
-            }
+            '$set': self.add_updated_at({
+                'active': False,
+                'default': False
+            })
         }).modified_count
 
     def find_by_aws_id(self, aws_crediential_id: ObjectId) -> list[Ec2Instance]:

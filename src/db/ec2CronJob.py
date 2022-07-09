@@ -33,11 +33,11 @@ class Ec2CronRepo(Mongo):
         return self.col.update_one({
             '_id': _id
         }, {
-            '$set': {
+            '$set': self.add_updated_at({
                 'running': True,
                 'active': True,
                 'job_id': job_id
-            }
+            })
         }).modified_count > 0
 
     def find_by_time(self, ec2_id: ObjectId, cmd: str, hour: int, minute: int) -> Ec2Cron | None:
@@ -64,28 +64,28 @@ class Ec2CronRepo(Mongo):
         return self.col.update_one({
             '_id': _id
         }, {
-            '$set': {
+            '$set': self.add_updated_at({
                 'active': True,
                 'running': True,
                 'job_id': job_id
-            }
+            })
         })
 
     def deactivate(self, _id: ObjectId):
         return self.col.update_one({
             '_id': _id
         }, {
-            '$set': {
+            '$set': self.add_updated_at({
                 'active': False,
                 'running': False
-            }
+            })
         })
 
     def rm_by_ec2_ids(self, ids: list[ObjectId]):
         return self.col.delete_many({
             'ec2_id': {'$in': ids}
         }).deleted_count
-    
+
     def find_by_ec2_ids(self, ids: list[ObjectId]):
         return self.col.find({
             'ec2_id': {'$in': ids}

@@ -35,10 +35,10 @@ class Ec2OperationLogRepo(Mongo):
         self.col.update_one({
             '_id': _id
         }, {
-            '$set': {
+            '$set': self.add_updated_at({
                 'status': 'exceed_max_runtime',
                 'finished_at': datetime.now()
-            }
+            })
         })
 
     def error_operation(self, _id: ObjectId, error):
@@ -48,11 +48,11 @@ class Ec2OperationLogRepo(Mongo):
         self.col.update_one({
             '_id': _id
         }, {
-            '$set': {
+            '$set': self.add_updated_at({
                 'status': 'error',
                 'finished_at': datetime.now(),
                 'error': str(error)
-            }
+            })
         })
 
     def timeout_finish_operation(self, _id: ObjectId):
@@ -62,11 +62,11 @@ class Ec2OperationLogRepo(Mongo):
         self.col.update_one({
             '_id': _id
         }, {
-            '$set': {
+            '$set': self.add_updated_at({
                 'status': 'timeout',
                 'finished_at': datetime.now(),
                 'success': True
-            }
+            })
         })
 
     def finish_operation(self, _id: ObjectId):
@@ -76,11 +76,11 @@ class Ec2OperationLogRepo(Mongo):
         self.col.update_one({
             '_id': _id
         }, {
-            '$set': {
+            '$set': self.add_updated_at({
                 'status': 'success',
                 'finished_at': datetime.now(),
                 'success': True
-            }
+            })
         })
 
     def get_last_unfinished_cmd(self, ec2_id: ObjectId) -> None | Ec2OperationLog:

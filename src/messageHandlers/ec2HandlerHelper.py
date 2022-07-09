@@ -350,9 +350,12 @@ async def cmd_executor(cmds: list[str], cmd: str, expected_status: str | None, u
         for task in pending_coros:
             task.cancel()
         res_msg = MessageGenerator().cmd_success(cmd, current_status)
-        if cmd == 'status':
-            res_msg.separator().add_outline_token(
-                ec2_instance['outline_token'], ec2_status['ip']).separator().add_ip(ec2_status['ip'])
+        outline_token = ec2_instance.get('outline_token', None)
+        ip = ec2_status.get('ip', None)
+        if cmd == 'status' and ip != None:
+            if outline_token != None:
+                res_msg.separator().add_outline_token(outline_token, ip)
+            res_msg.separator().add_ip(ip)
         if stop_event is not None:
             logger.info(f'[cmd_executor] wait for stop event signal')
             await stop_event.wait()
@@ -455,19 +458,22 @@ def rm_ec2(ec2_id: ObjectId = None, aws_id: ObjectId = None):
     '''
     if int(bool(ec2_id)) + int(bool(aws_id)) != 1:
         return 0, 0
-    ec2_deleted_count
-    ec2_cron_deleted_count
+    ec2_deleted_count = 0
+    ec2_cron_deleted_count = 0
     if ec2_id is not None:
         ec2_deleted_count = Ec2InstanceRepo().rm_by_id(ec2_id).modified_count
-        ids = [ec2_id]
+        ec2_ids = [ec2_id]
     if aws_id is not None:
-        ec2_deleted_count = Ec2InstanceRepo().rm_by_aws_crediential_id(aws_id)
         instances = Ec2InstanceRepo().find_by_aws_id(aws_id)
-        ids = [instance['_id'] for instance in instances]
+        ec2_deleted_count = Ec2InstanceRepo().rm_by_aws_crediential_id(aws_id)
+        ec2_ids = [instance['_id'] for instance in instances]
     # try to delete schedules
-    rm_cron_schedules(ids)
+    rm_cron_schedules(ec2_ids)
+    # remove ec2 status
+    removed_count = Ec2StatusRepo().rm_by_ec2_ids(ec2_ids)
+    logger.info(f'[rm_ec2] removed [{removed_count}] ec2 status')
     # remove cron jobs from DB
-    ec2_cron_deleted_count = Ec2CronRepo().rm_by_ec2_ids(ids)
+    ec2_cron_deleted_count = Ec2CronRepo().rm_by_ec2_ids(ec2_ids)
     return ec2_deleted_count, ec2_cron_deleted_count
 
 

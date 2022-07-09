@@ -85,7 +85,7 @@ class AwsRm(AsyncBaseMessageHandler):
             return 'No such instance'
         aws_deleted_count, ec2_deleted_count, ec2_cron_deleted_count = rm_aws(
             ins['_id'])
-        return f'Success, instance: {identifier} has been removed. \n {ec2_deleted_count} ec2 instance(s) and {ec2_cron_deleted_count} ec2 cron job(s) are also been removed.'
+        return f'Success, instance: [{identifier}] has been removed. \n [{ec2_deleted_count}] ec2 instance(s) and [{ec2_cron_deleted_count}] ec2 cron job(s) are also been removed.'
 
 
 

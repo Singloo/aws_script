@@ -42,3 +42,14 @@ class Ec2StatusRepo(Mongo):
             'ec2_id': ec2_id,
             'active': True
         })
+
+    def rm_by_ec2_ids(self, ec2_ids: list[ObjectId]):
+        return self.col.update_one({
+            'ec2_id': {
+                '$in': ec2_ids
+            }
+        }, {
+            '$set': self.add_updated_at({
+                'active': False
+            })
+        }).modified_count

@@ -29,7 +29,8 @@ class AwsCredientialRepo(Mongo):
 
     def insert(self, doc: AwsCrediential, user_id: ObjectId) -> tuple[ObjectId, str]:
         existing = self.col.count_documents({
-            'user_id': user_id
+            'user_id': user_id,
+            'active': True
         })
         if existing > 100:
             raise ExceedMaximumNumber

@@ -128,7 +128,7 @@ class Ec2Rm(AsyncBaseMessageHandler):
         if ins is None:
             return 'No such instance'
         ec2_deleted_count, ec2_cron_deleted_count = rm_ec2(ins['_id'])
-        return f'Success, instance: {identifier} has been removed. {ec2_cron_deleted_count} ec2 cron job(s) are also been removed'
+        return f'Success, instance: [{identifier}] has been removed.[{ec2_cron_deleted_count}] ec2 cron job(s) are also been removed'
 
 
 class Ec2Start(AsyncBaseMessageHandler):

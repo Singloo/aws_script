@@ -24,14 +24,14 @@ class Mongo(object):
     def create_indexes(self):
         pass
 
-    def delete_from_id(self, _id: ObjectId):
-        return self.col.update_one({
-            '_id': _id
-        }, {
-            '$set': {
-                'active': False
-            }
-        })
+    # def delete_from_id(self, _id: ObjectId):
+    #     return self.col.update_one({
+    #         '_id': _id
+    #     }, {
+    #         '$set': self.add_updated_at({
+    #             'active': False
+    #         })
+    #     })
 
     def add_created_updated_at(self, doc: dict):
         return {**doc, 'created_at': datetime.now(), 'updated_at': datetime.now()}
@@ -96,7 +96,8 @@ class Mongo(object):
         return self.col.update_one({
             '_id': _id
         }, {
-            '$set': {
-                'active': False
-            }
+            '$set': self.add_updated_at({
+                'active': False,
+                'default': False
+            })
         })
