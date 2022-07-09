@@ -357,6 +357,10 @@ async def cmd_executor(cmds: list[str], cmd: str, expected_status: str | None, u
                 if outline_token is not None:
                     resp_msg.separator().add_outline_token(outline_token, ip)
                 resp_msg.separator().add_ip(ip)
+            if stop_event is not None:
+                logger.info(f'[cmd_executor] timeout wait for stop event signal')
+                await stop_event.wait()
+                logger.info(f'[cmd_executor] timeout stop event signal received')
             return resp_msg.generate()
         # successfully got result
         # cancel timeout task
