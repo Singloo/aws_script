@@ -88,19 +88,19 @@ class Ec2Bind(AsyncBaseMessageHandler):
                  },
                 self.user_id,
             )
-            remove(uniq_key)
+            await remove(uniq_key)
             init_ec2_status(object_id, aws_crediential_id, self.user_id)
             return f'Success, your credientials are encrypted well in our database.\n [ID]: {object_id} \n[Default Alias]:{alias}'
         except ValidatorInvalidAndExceedMaximumTimes as e:
-            remove(uniq_key)
+            await remove(uniq_key)
             return '\n'.join(e.args)
         except ValidatorInvalidInput as e:
             return '\n'.join(e.args)
         except SessionExpired:
-            remove(uniq_key)
+            await remove(uniq_key)
             return 'Ec2 bind: Sorry, session is expired, please try again.'
         except ExceedMaximumNumber:
-            remove(uniq_key)
+            await remove(uniq_key)
             return 'Sorry, you cannot bind more ec2 instance(maximum 100)'
 
 
