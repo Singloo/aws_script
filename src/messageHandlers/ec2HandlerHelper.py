@@ -269,6 +269,8 @@ def get_ec2_instance_status_and_unfinished_cmd(cmds: list[str], user_id: ObjectI
     '''
     ec2_instance = _get_ec2_instance(
         user_id, None if len(cmds) == 0 else cmds[0])
+    if ec2_instance is None:
+        return None, None, None
     ec2_status: Ec2Status = Ec2StatusRepo().find_by_ec2_id(ec2_instance['_id'])
     repo = Ec2OperationLogRepo()
     unfinished_cmd = repo.get_last_unfinished_cmd(ec2_instance['_id'])
@@ -318,6 +320,10 @@ async def cmd_executor(cmds: list[str], cmd: str, expected_status: str | None, u
     # get ec2 instance, ec2 status, and unfinished command
     ec2_instance, ec2_status, unfinished_cmd = get_ec2_instance_status_and_unfinished_cmd(
         cmds, user_id)
+    if ec2_instance is None:
+        if len(cmds) == 0:
+            return 'You don\'t have a default ec2 instance, try to set a default one or start with ec2 bind'
+        return 'ec2 instance not found'
     current_status = ec2_status['status']
     ec2_id, aws_crediential_id = ec2_instance['_id'], ec2_instance['aws_crediential_id']
     # if has unfinished cmd, return
