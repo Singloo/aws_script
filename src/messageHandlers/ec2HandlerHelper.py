@@ -129,6 +129,7 @@ async def get_status_until(ec2_id: ObjectId, aws_crediential_id: ObjectId, expec
         while state != expected_status or times < max_times:
             state, ip = await load_and_get_ins_state_ip(ins)
             times += 1
+            await asyncio.sleep(wait_time)
         return state, ip
 
 
@@ -358,9 +359,11 @@ async def cmd_executor(cmds: list[str], cmd: str, expected_status: str | None, u
                     resp_msg.separator().add_outline_token(outline_token, ip)
                 resp_msg.separator().add_ip(ip)
             if stop_event is not None:
-                logger.info(f'[cmd_executor] timeout wait for stop event signal')
+                logger.info(
+                    f'[cmd_executor] timeout wait for stop event signal')
                 await stop_event.wait()
-                logger.info(f'[cmd_executor] timeout stop event signal received')
+                logger.info(
+                    f'[cmd_executor] timeout stop event signal received')
             return resp_msg.generate()
         # successfully got result
         # cancel timeout task
