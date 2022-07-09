@@ -66,7 +66,7 @@ async def get(key: str, serializer: Serializer):
     return serializer.loads(res)
 
 
-async def remove(*keys: str):
+async def remove(*keys: list[str]):
     await get_redis().remove(*keys)
 
 json_save: Callable[[str, Any, int | None], None] = partial(
