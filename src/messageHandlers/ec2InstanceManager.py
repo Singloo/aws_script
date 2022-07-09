@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING
 import aioboto3
 from bson.objectid import ObjectId
 from src.db.ec2Instance import Ec2InstanceRepo
-from src.utils.constants import REGION_NAME, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, SS_PORT, SS_STR
 from src.db.exceptions import ExceedMaximumNumber, NoSuchDocument
 from src.db.awsCrediential import AwsCredientialRepo
 from .messageGenerator import MessageGenerator
@@ -43,15 +42,6 @@ class Ec2InstanceManager():
 
     async def __aexit__(self, type, value, trace):
         await self.ec2.__aexit__(type, value, trace)
-
-
-def getEc2Instance(instance_id: str):
-    return Ec2InstanceManager(
-        instance_id,
-        REGION_NAME,
-        AWS_ACCESS_KEY_ID,
-        AWS_SECRET_ACCESS_KEY
-    )
 
 
 def getEc2InstanceWithCredentialId(ec2_id: ObjectId, aws_crediential_id: ObjectId):
