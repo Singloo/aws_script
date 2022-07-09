@@ -17,7 +17,7 @@ CRYPTO_KEY=for encryption
 SENTRY_DSN=
 ```
 
-### Feature
+### Features
 
 - bind multiple aws credientials and ec2 instances
 - set cron jobs to start or stop ec2 instance
