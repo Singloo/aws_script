@@ -17,9 +17,16 @@ CRYPTO_KEY=for encryption
 SENTRY_DSN=
 ```
 
+### Feature
+
+- bind multiple aws credientials and ec2 instances
+- set cron jobs to start or stop ec2 instance
+- use short alias to locate ec2 instance, aws crediential, cron job
+
+
 ### Available commands
 
-> aws bind
+`aws bind`
 
 Bind Aws crediential, you will be asked to input these fields:
 aws access key id: e.g. AKIAUY54QBW6WAPIOGBE
@@ -27,11 +34,11 @@ aws secret access key: e.g. 8Qu6yPw52QsVjDeIvxYvnFeiYwBBK7yqpYeHuPU2
 aws region: e.g.: us-east-1
 after binding, you will get an ID and alias to identify your crediential.
 
-> aws list
+`aws list`
 
 List all your bound aws crediential.
 
-> aws rm
+`aws rm`
 
 Remove a bound aws crediential.
 *All ec2 instances related with this crediential and all cron jobs related to those ec2 instances will also be removed.
@@ -39,17 +46,17 @@ Remove a bound aws crediential.
 use it like:
 aws rm <id | alias>
 
-> aws default
+`aws default`
 
 Set a default aws crediential.
 use it like:
 aws default <id | alias>
 
-> ec2 list
+`ec2 list`
 
 List all your bound ec2 instances.
 
-> ec2 rm
+`ec2 rm`
 
 Remove a bound ec2 instance.
 *All cron jobs related to this instance will be removed also.
@@ -57,7 +64,7 @@ Remove a bound ec2 instance.
 use it like:
 ec2 rm <id | alias>
 
-> ec2 start | start
+`ec2 start` | `start`
 
 Start an ec2 instance. Expect instance status to be stopped.
 
@@ -65,7 +72,7 @@ use it like:
 ec2 start [id | alias]
 if id|alias is not provided, the default instance will be started.
 
-> ec2 status | status
+`ec2 status` | `status`
 
 Get the status and ip of an ec2 instance.
 
@@ -73,7 +80,7 @@ use it like:
 ec2 status [id | alias]
 if id|alias is not provided, the default instance will be used.
 
-> ec2 stop | stop
+`ec2 stop` | `stop`
 
 Stop an ec2 instance. Expect instance status to be running.
 
@@ -81,20 +88,20 @@ use it like:
 ec2 stop [id | alias]
 if id|alias is not provided, the default instance will be stopped.
 
-> ec2 alias
+`ec2 alias`
 
 Set a new alias for an ec2 instance.
 
 use it like:
 ec2 alias <id | old_alias> <new_alias>
 
-> ec2 default 
+`ec2 default `
 
 Set an ec2 instance to be the default instance.
 use it like:
 ec2 default <id | alias>
 
-> ec2 cron 
+`ec2 cron` 
 
 Add a cron job, start or stop ec2 instance at a certain time.
 use it like:
@@ -113,17 +120,17 @@ ec2 cron 22:22 stop
 ec2 cron u1 12:00 start
 ec2 cron 62c1298e9b234e046a08503b 11:11 stop
 
-> ec2 cron list
+`ec2 cron list`
 
 List all cron jobs
 
-> ec2 cron run 
+`ec2 cron run` 
 
 Run a cron job
 use it like:
 ec2 cron run <id | alias>
 
-> ec2 cron stop 
+`ec2 cron stop`
 
 Stop a cron job
 use it like:
