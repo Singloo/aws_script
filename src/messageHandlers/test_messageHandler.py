@@ -1,5 +1,6 @@
-from . import BaseMessageHandler, NoSuchHandler, AsyncBaseMessageHandler
+from . import BaseMessageHandler, AsyncBaseMessageHandler
 import unittest
+from .exceptions import NoSuchHandler
 
 
 class Ec2Start(BaseMessageHandler):
@@ -144,6 +145,7 @@ class TestAsyncMessageHandler(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(NoSuchHandler):
             cmd = ['ec2', 'cmd2']
             await AsyncInputMapperEntry()(cmd)
+
 
 if __name__ == '__main__':
     unittest.main()

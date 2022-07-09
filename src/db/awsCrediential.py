@@ -2,8 +2,7 @@ from .mongo import Mongo
 from bson.objectid import ObjectId
 from src.types import AwsCrediential
 from .exceptions import ExceedMaximumNumber
-from .helper import ensure_decrypted, is_int
-from functools import partial
+from .helper import decrypt_aws_crediential, decrypt_aws_crediential_cursor
 from pymongo import IndexModel
 
 
@@ -16,21 +15,22 @@ class AwsCredientialRepo(Mongo):
     def __init__(self):
         super().__init__()
         self.col = self.get_collection('awsCrediential')
+        self.create_indexes()
 
     def create_indexes(self):
         index_models = [IndexModel(
-            [('alias', 1)], unique=True, sparse=True, background=True)]
+            [('alias', 1)],  background=True)]
         self.col.create_indexes(index_models)
 
     def find_all(self, user_id: ObjectId) -> list[AwsCrediential]:
-        cursor = self.col.find({'user_id': user_id, 'active': True}).sort({
-            'created_at': -1
-        })
-        return list(map(partial(ensure_decrypted, keys_to_decrypt=['aws_access_key_id', 'aws_secret_access_key']), list(cursor)))
+        cursor = self.col.find({'user_id': user_id, 'active': True}).sort(
+            [('created_at', -1)])
+        return decrypt_aws_crediential_cursor(cursor)
 
     def insert(self, doc: AwsCrediential, user_id: ObjectId) -> tuple[ObjectId, str]:
         existing = self.col.count_documents({
-            'user_id': user_id
+            'user_id': user_id,
+            'active': True
         })
         if existing > 100:
             raise ExceedMaximumNumber
@@ -43,8 +43,8 @@ class AwsCredientialRepo(Mongo):
 
     def find_by_id(self, _id: ObjectId) -> AwsCrediential:
         res = super().find_by_id(_id)
-        return ensure_decrypted(res, ['aws_access_key_id', 'aws_secret_access_key']) if res != None else None
+        return decrypt_aws_crediential(res)
 
     def find_by_alias(self, user_id: ObjectId, alias: str):
         res: AwsCrediential = super().find_by_alias(user_id, alias)
-        return ensure_decrypted(res, ['aws_access_key_id', 'aws_secret_access_key']) if res != None else None
+        return decrypt_aws_crediential(res)

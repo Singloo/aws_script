@@ -11,7 +11,7 @@ class Mongo(object):
     __instance: Self
 
     def __new__(cls: type[Self]) -> Self:
-        if cls.__instance is None:
+        if getattr(cls, '__instance', None) is None:
             cls.__instance = object.__new__(cls)
         return cls.__instance
 
@@ -20,19 +20,18 @@ class Mongo(object):
         self.db: Database
         self.connect()
         self.col: Collection
-        self.create_indexes()
 
     def create_indexes(self):
         pass
 
-    def delete_from_id(self, _id: ObjectId):
-        return self.col.update_one({
-            '_id': _id
-        }, {
-            '$set': {
-                'active': False
-            }
-        })
+    # def delete_from_id(self, _id: ObjectId):
+    #     return self.col.update_one({
+    #         '_id': _id
+    #     }, {
+    #         '$set': self.add_updated_at({
+    #             'active': False
+    #         })
+    #     })
 
     def add_created_updated_at(self, doc: dict):
         return {**doc, 'created_at': datetime.now(), 'updated_at': datetime.now()}
@@ -68,13 +67,12 @@ class Mongo(object):
         })
         return res
 
-    def find_by_vague_id(self, identifier: str):
+    def find_by_vague_id(self, identifier: str, user_id: ObjectId):
         is_object_id = ObjectId.is_valid(identifier)
-        find_instance = self.find_by_id if is_object_id else self.find_by_alias
-        args = (ObjectId(identifier),) if is_object_id else (
-            self.params['user_id'], identifier)
-        res = find_instance(*args)
-        return res
+        if is_object_id:
+            return self.find_by_id(ObjectId(identifier))
+        else:
+            return self.find_by_alias(user_id, identifier)
 
     def get_alias(self, user_id: ObjectId) -> str:
         aliases = generate_alias(2, 50)
@@ -93,3 +91,32 @@ class Mongo(object):
         })
         existed_alias = [item['alias'] for item in cursor]
         return list(set(aliases) - {*existed_alias})
+
+    def rm_by_id(self, _id: ObjectId):
+        '''
+            set active to false, set default to false
+        '''
+        return self.col.update_one({
+            '_id': _id
+        }, {
+            '$set': self.add_updated_at({
+                'active': False,
+                'default': False
+            })
+        })
+
+    def set_new_default(self, user_id: ObjectId, _id: ObjectId):
+        self.col.update_many({
+            'user_id': user_id
+        }, {
+            '$set': self.add_updated_at({
+                'default': False
+            })
+        })
+        return self.col.update_one({
+            '_id': _id
+        }, {
+            '$set': self.add_updated_at({
+                'default': True
+            })
+        }).modified_count

@@ -32,4 +32,4 @@ async def test_aws_resource(region_name: str, aws_access_key_id: str, aws_secret
                     found = item
                 return found is not None
     except ClientError as e:
-        return e.response['Error']['Message']
+        return f"AWS error: {e.response['Error']['Message']}"

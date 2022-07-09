@@ -23,6 +23,6 @@ class UserRepo(Mongo):
             return self.insert(doc)
         else:
             self.col.update_one(doc, {
-                '$set': {'activated_at': datetime.now()}
+                '$set': self.add_updated_at({'activated_at': datetime.now()})
             })
         return res['_id']

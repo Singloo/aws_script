@@ -34,7 +34,7 @@ class Ec2CronLogRepo(Mongo):
             '_id': _id
         }, {
             '$set': self.add_updated_at({
-                'error': error,
+                'error': str(error),
                 'finished_at': datetime.now()
             })
         })

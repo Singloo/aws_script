@@ -5,9 +5,9 @@ from bson.objectid import ObjectId
 from datetime import datetime
 
 MAX_RUNTIME = {
-    'start': 60*5,
+    'start': 30,
     'status': 20,
-    'stop': 60
+    'stop': 30
 }
 
 
@@ -29,35 +29,58 @@ class Ec2OperationLogRepo(Mongo):
         return res.inserted_id
 
     def fail_operation(self, _id: ObjectId):
+        '''
+            exceed max run time
+        '''
         self.col.update_one({
             '_id': _id
         }, {
-            '$set': {
+            '$set': self.add_updated_at({
                 'status': 'exceed_max_runtime',
                 'finished_at': datetime.now()
-            }
+            })
         })
 
     def error_operation(self, _id: ObjectId, error):
+        '''
+            encountered error
+        '''
         self.col.update_one({
             '_id': _id
         }, {
-            '$set': {
+            '$set': self.add_updated_at({
                 'status': 'error',
                 'finished_at': datetime.now(),
-                'error': error
-            }
+                'error': str(error)
+            })
+        })
+
+    def timeout_finish_operation(self, _id: ObjectId):
+        '''
+            didnt finish in time
+        '''
+        self.col.update_one({
+            '_id': _id
+        }, {
+            '$set': self.add_updated_at({
+                'status': 'timeout',
+                'finished_at': datetime.now(),
+                'success': True
+            })
         })
 
     def finish_operation(self, _id: ObjectId):
+        '''
+            finished in time
+        '''
         self.col.update_one({
             '_id': _id
         }, {
-            '$set': {
+            '$set': self.add_updated_at({
                 'status': 'success',
                 'finished_at': datetime.now(),
                 'success': True
-            }
+            })
         })
 
     def get_last_unfinished_cmd(self, ec2_id: ObjectId) -> None | Ec2OperationLog:
@@ -65,12 +88,12 @@ class Ec2OperationLogRepo(Mongo):
             'ec2_id': ec2_id,
             'success': False,
             'status': 'pending'
-        }).sort({'started_at': -1})
+        }).sort([('started_at', -1)])
         unfinshed_cmds: list[Ec2OperationLog] = []
         for operation_log in cursor:
             operation_log: Ec2OperationLog
             max_runtime = MAX_RUNTIME[operation_log['command']]
-            if datetime.timestamp(operation_log['started_at']) + max_runtime > datetime.now().timestamp():
+            if datetime.timestamp(operation_log['started_at']) + max_runtime < datetime.now().timestamp():
                 # exceed max run time, set success to false
                 self.fail_operation(operation_log['_id'])
             else:

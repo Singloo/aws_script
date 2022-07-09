@@ -9,14 +9,21 @@ class Ec2StatusRepo(Mongo):
         super().__init__()
         self.col = self.get_collection('ec2Status')
 
-    def upsert_ec2_status(self, ec2_id: ObjectId, status: str, command: str, ip: str, user_id: ObjectId):
+    def find_by_ec2_id(self, ec2_id: ObjectId):
+        return self.col.find_one({
+            'ec2_id': ec2_id
+        })
+
+    def upsert_ec2_status(self, ec2_id: ObjectId, status: str, command: str, user_id: ObjectId, ip: str | None = None):
         doc = {
             'ec2_id': ec2_id,
             'status': status,
-            'ip': ip,
             'last_command': command,
-            'modified_by': user_id
+            'modified_by': user_id,
+            'active': True
         }
+        if ip != None:
+            doc['ip'] = ip
         res = self.col.find_one({
             'ec2_id': ec2_id,
             'active': True
@@ -36,13 +43,13 @@ class Ec2StatusRepo(Mongo):
             'active': True
         })
 
-    def update_status(self, ec2_id: ObjectId, status: str, ip: str | None = None):
-        next_doc = {'status': status}
-        if ip is not None:
-            next_doc['ip'] = ip
-        res: UpdateResult = self.col.update_one({
-            'ec2_id': ec2_id,
+    def rm_by_ec2_ids(self, ec2_ids: list[ObjectId]):
+        return self.col.update_one({
+            'ec2_id': {
+                '$in': ec2_ids
+            }
         }, {
-            '$set': self.add_updated_at(next_doc)
-        })
-        return res.modified_count
+            '$set': self.add_updated_at({
+                'active': False
+            })
+        }).modified_count

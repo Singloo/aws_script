@@ -5,10 +5,6 @@ from bson.objectid import ObjectId
 from enum import Enum
 
 
-class CachedData(TypedDict):
-    instance_id: str
-
-
 ValidatorFunc = Callable[[str], bool]
 
 
@@ -75,6 +71,7 @@ class Ec2OperationLogStatus(Enum):
     SUCCESS = 'success'
     ERROR = 'error'
     EXCEED_MAX_RUNTIME = 'exceed_max_runtime'
+    TIMEOUT = 'timeout'
 
 
 class Ec2OperationLog(MongoMetadata):
@@ -118,3 +115,4 @@ class CommandLog(MongoMetadata):
     success: bool
     error: Any | None
     result: str
+    trace_info: str | None
