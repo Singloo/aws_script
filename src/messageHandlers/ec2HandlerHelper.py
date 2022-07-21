@@ -335,7 +335,7 @@ async def cmd_executor(cmds: list[str], cmd: str, expected_status: str | None, u
         # status doesn't match, return msg and schedule a status task
         create_and_schedule_status_task(
             ec2_id, aws_crediential_id, user_id, stop_event)
-        return MessageGenerator().invalid_status_for_cmd(cmd, expected_status, current_status).generate()
+        return MessageGenerator().invalid_status_for_cmd(cmd, expected_status, last_status).generate()
     ec2_log_id = Ec2OperationLogRepo().insert(
         ec2_id, cmd, user_id)
     try:
